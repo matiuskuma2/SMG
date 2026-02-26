@@ -68,11 +68,11 @@ export const fetchEventSchedules = async (
 		userGroupIds = userGroups?.map((ug) => ug.group_id) || [];
 	}
 
-	// 基本グループ（簿記講座、運営、講師）のIDを取得
+	// 基本グループ（簿記3期、運営、講師）のIDを取得
 	const { data: basicGroupData } = await client
 		.from('mst_group')
 		.select('group_id')
-		.in('title', ['簿記講座', '運営', '講師'])
+		.in('title', ['簿記3期', '運営', '講師'])
 		.is('deleted_at', null);
 
 	const basicGroupIds = basicGroupData?.map((g) => g.group_id) || [];

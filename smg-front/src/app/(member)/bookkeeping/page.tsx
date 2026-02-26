@@ -24,11 +24,11 @@ const BookkeepingListContent = () => {
 					return;
 				}
 
-				// mst_groupテーブルから「簿記講座」「運営」「講師」グループのIDを取得
+				// mst_groupテーブルから「簿記3期」「運営」「講師」グループのIDを取得
 				const { data: groupData, error: groupError } = await supabase
 					.from('mst_group')
 					.select('group_id, title')
-					.in('title', ['簿記講座', '運営', '講師'])
+					.in('title', ['簿記3期', '運営', '講師'])
 					.is('deleted_at', null);
 
 				if (groupError) {
@@ -39,7 +39,7 @@ const BookkeepingListContent = () => {
 
 				if (!groupData || groupData.length === 0) {
 					console.error(
-						'必要なグループ（簿記講座、運営、講師）が見つかりません',
+						'必要なグループ（簿記3期、運営、講師）が見つかりません',
 					);
 					setHasAccess(false);
 					return;
@@ -132,11 +132,11 @@ const BookkeepingListContent = () => {
 				} = await supabase.auth.getUser();
 				const userId = user?.id;
 
-				// 基本グループ（簿記講座、運営、講師）のIDを取得
+				// 基本グループ（簿記3期、運営、講師）のIDを取得
 				const { data: basicGroupData } = await supabase
 					.from('mst_group')
 					.select('group_id, title')
-					.in('title', ['簿記講座', '運営', '講師'])
+					.in('title', ['簿記3期', '運営', '講師'])
 					.is('deleted_at', null);
 
 				const basicGroupIds =
@@ -158,7 +158,7 @@ const BookkeepingListContent = () => {
 						return { items: [], totalCount: 0 };
 					}
 					userGroupIds = userGroups.map((ug) => ug.group_id);
-					// ユーザーが基本グループ（簿記講座、運営、講師）に所属しているかチェック
+					// ユーザーが基本グループ（簿記3期、運営、講師）に所属しているかチェック
 					hasFullAccess = userGroupIds.some((groupId) =>
 						basicGroupIds.includes(groupId),
 					);

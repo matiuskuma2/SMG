@@ -1,4 +1,11 @@
-export const ROUTE_DEFINITION: { label: string; href: string }[] = [
+export type RouteDefinition = {
+	label: string;
+	href: string;
+	/** 指定した場合、そのグループ名に所属するユーザーにのみ表示される */
+	requiredGroup?: string;
+};
+
+export const ROUTE_DEFINITION: RouteDefinition[] = [
 	{ label: 'TOP', href: '/' },
 	{ label: '講座・イベント予約', href: '/events' },
 	{ label: 'ご利用ガイド', href: '/beginner' },
@@ -8,7 +15,7 @@ export const ROUTE_DEFINITION: { label: string; href: string }[] = [
 	{ label: 'SMGラジオ', href: '/radio' },
 	{ label: '講師に質問', href: '/questions' },
 	{ label: 'よくある質問', href: '/faq' },
-	{ label: '簿記3期', href: '/bookkeeping' },
+	{ label: '簿記3期', href: '/bookkeeping', requiredGroup: '簿記3期' },
 ];
 
 export const DEFAULT_LOCALE = 'Asia/Tokyo';

@@ -101,11 +101,11 @@ export async function searchAll(
 				.eq('event_type_name', '簿記講座')
 				.is('deleted_at', null),
 
-			// 簿記講座の基本グループ（簿記講座、運営、講師）のIDを取得
+			// 簿記講座の基本グループ（簿記3期、運営、講師）のIDを取得
 			supabase
 				.from('mst_group')
 				.select('group_id')
-				.in('title', ['簿記講座', '運営', '講師'])
+				.in('title', ['簿記3期', '運営', '講師'])
 				.is('deleted_at', null),
 
 			// お知らせを検索

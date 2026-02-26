@@ -11,8 +11,8 @@ const EVENT_TYPE_NAMES = [
 	'特別セミナー',
 ];
 
-// 簿記講座グループ名
-const BOOKKEEPING_GROUP_NAME = '簿記講座';
+// 簿記3期グループ名
+const BOOKKEEPING_GROUP_NAME = '簿記3期';
 
 export const fetchEvents = async () => {
 	const client = createClient();

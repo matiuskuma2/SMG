@@ -1,5 +1,6 @@
 'use client';
 
+import { useFilteredRoutes } from '@/hooks/useFilteredRoutes';
 import { useBreakpoints } from '@/hooks/use-breakpoints';
 import { css, cx, sva } from '@/styled-system/css';
 import { Flex, styled } from '@/styled-system/jsx';
@@ -22,6 +23,7 @@ const SawarabiMincho = Sawarabi_Mincho({
 
 export const Drawer = () => {
 	const modalStyle = modal();
+	const { routes } = useFilteredRoutes();
 
 	return (
 		<Dialog.Root lazyMount unmountOnExit>
@@ -55,7 +57,7 @@ export const Drawer = () => {
 							</Dialog.CloseTrigger>
 						</Flex>
 						<div className={css({ overflowY: 'auto', scrollbar: 'hidden' })}>
-							{ROUTE_DEFINITION.map((d) => (
+							{routes.map((d) => (
 								<DrawerItem key={d.href}>
 									<Dialog.CloseTrigger asChild>
 										<Link href={d.href}>{d.label}</Link>

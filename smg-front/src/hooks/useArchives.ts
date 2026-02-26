@@ -190,16 +190,16 @@ export const useArchives = (tabType?: 'regular' | 'bookkeeping' | 'online-semina
 
           // 簿記講座のグループ制限チェック（/bookkeepingページと同じロジック）
           if (userId && bookkeepingTypeId) {
-            // 基本グループ（簿記講座、運営、講師）のIDを取得
+            // 基本グループ（簿記3期、運営、講師）のIDを取得
             const { data: basicGroupData } = await supabase
               .from('mst_group')
               .select('group_id')
-              .in('title', ['簿記講座', '運営', '講師'])
+              .in('title', ['簿記3期', '運営', '講師'])
               .is('deleted_at', null);
 
             const basicGroupIds = basicGroupData?.map(g => g.group_id) || [];
 
-            // ユーザーが基本グループ（簿記講座、運営、講師）に所属しているかチェック
+            // ユーザーが基本グループ（簿記3期、運営、講師）に所属しているかチェック
             hasFullAccess = userGroupIds.some(groupId => basicGroupIds.includes(groupId));
           }
         }
@@ -263,7 +263,7 @@ export const useArchives = (tabType?: 'regular' | 'bookkeeping' | 'online-semina
             // 簿記講座の場合の特別処理
             if (bookkeepingTypeId && archive.event_type_id === bookkeepingTypeId) {
               if (hasFullAccess) {
-                // 基本グループ（簿記講座、運営、講師）に所属している場合はすべて表示
+                // 基本グループ（簿記3期、運営、講師）に所属している場合はすべて表示
                 return true;
               } else {
                 // 基本グループに所属していない場合は、制限があるイベントのみ表示

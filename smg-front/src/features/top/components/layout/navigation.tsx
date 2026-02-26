@@ -1,12 +1,13 @@
 'use client';
 
-import { ROUTE_DEFINITION } from '@/features/top/const';
+import { useFilteredRoutes } from '@/hooks/useFilteredRoutes';
 import { css } from '@/styled-system/css';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 export const Navigation = () => {
 	const pathname = usePathname();
+	const { routes } = useFilteredRoutes();
 
 	return (
 		<div
@@ -17,7 +18,7 @@ export const Navigation = () => {
 				overflowX: 'auto',
 			})}
 		>
-			{ROUTE_DEFINITION.map((d) => (
+			{routes.map((d) => (
 				<Link
 					href={d.href}
 					key={d.label}
