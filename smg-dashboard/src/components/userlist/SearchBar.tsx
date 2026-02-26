@@ -13,6 +13,8 @@ interface SearchBarProps {
   handleSortByJoinedDate: () => void;
   handleFilterRole: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   userTypes: string[];
+  handleExportCSV?: () => void;
+  isExporting?: boolean;
 }
 
 export const SearchBar: React.FC<SearchBarProps> = ({
@@ -23,6 +25,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   handleSortByJoinedDate,
   handleFilterRole,
   userTypes,
+  handleExportCSV,
+  isExporting,
 }) => {
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
 
@@ -151,6 +155,32 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             </option>
           ))}
         </select>
+
+        {handleExportCSV && (
+          <Button
+            onClick={handleExportCSV}
+            disabled={isExporting}
+            className={css({
+              px: '3',
+              py: '2',
+              rounded: 'md',
+              border: '1px solid',
+              borderColor: 'gray.300',
+              bg: 'white',
+              color: 'gray.700',
+              _hover: { bg: 'gray.50' },
+              display: 'flex',
+              alignItems: 'center',
+              gap: '2',
+              width: { base: 'full', xl: 'auto' },
+              opacity: isExporting ? 0.6 : 1,
+              cursor: isExporting ? 'not-allowed' : 'pointer',
+            })}
+          >
+            <FaDownload size={14} />
+            {isExporting ? 'エクスポート中...' : 'CSVダウンロード'}
+          </Button>
+        )}
       </div>
     </div>
   );

@@ -165,3 +165,110 @@ export async function getUsersAction(
     };
   }
 }
+
+/**
+ * ユーザー一覧をCSV文字列としてエクスポートする
+ * 現在の検索・フィルタ条件を適用した全件を取得
+ */
+export async function exportUsersCSVAction(
+  params: Omit<GetUsersParams, 'page' | 'itemsPerPage'> = {},
+): Promise<string> {
+  const { searchQuery = '', filterRole = 'all', sortByJoinedDate = null } = params;
+
+  const supabase = createClient();
+
+  try {
+    let query = supabase
+      .from('mst_user')
+      .select(
+        `
+        user_id,
+        username,
+        email,
+        phone_number,
+        user_type,
+        company_name,
+        created_at,
+        last_login_at,
+        trn_group_user (
+          mst_group (
+            title
+          )
+        )
+      `,
+      )
+      .is('deleted_at', null)
+      .or('deleted_at.is.null', { foreignTable: 'trn_group_user' });
+
+    if (searchQuery) {
+      query = query.or(
+        `username.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,phone_number.ilike.%${searchQuery}%`,
+      );
+    }
+
+    if (filterRole && filterRole !== 'all') {
+      query = query.eq('user_type', filterRole);
+    }
+
+    if (sortByJoinedDate) {
+      query = query.order('created_at', {
+        ascending: sortByJoinedDate === 'asc',
+      });
+    } else {
+      query = query.order('created_at', { ascending: false });
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('CSV export error:', error);
+      throw error;
+    }
+
+    // CSV ヘッダー
+    const headers = ['名前', 'メールアドレス', '電話番号', '属性', '会社名', '所属グループ', '入会日', '最終ログイン'];
+
+    // CSV行を生成
+    const rows = (data || []).map((user) => {
+      const groups = (user.trn_group_user || [])
+        .map((gu) => gu.mst_group?.title || '')
+        .filter(Boolean)
+        .join(' / ');
+
+      const formatDate = (dateStr: string | null) => {
+        if (!dateStr) return '';
+        return new Date(dateStr).toLocaleDateString('ja-JP');
+      };
+
+      return [
+        user.username || '',
+        user.email || '',
+        user.phone_number || '',
+        user.user_type || '',
+        user.company_name || '',
+        groups,
+        formatDate(user.created_at),
+        formatDate(user.last_login_at),
+      ];
+    });
+
+    // CSVエスケープ処理
+    const escapeCSV = (value: string) => {
+      if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+        return `"${value.replace(/"/g, '""')}"`;
+      }
+      return value;
+    };
+
+    const csvLines = [
+      headers.map(escapeCSV).join(','),
+      ...rows.map((row) => row.map(escapeCSV).join(',')),
+    ];
+
+    // BOM付きUTF-8（Excelで文字化けしないように）
+    return '\uFEFF' + csvLines.join('\n');
+  } catch (error) {
+    console.error('Error in exportUsersCSVAction:', error);
+    throw new Error('CSVエクスポートに失敗しました');
+  }
+}

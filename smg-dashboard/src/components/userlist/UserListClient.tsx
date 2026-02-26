@@ -1,13 +1,13 @@
 'use client';
 
 import { Pagination } from '@/components/ui/Pagination';
-import { getUsersAction } from '@/lib/api/user';
+import { exportUsersCSVAction, getUsersAction } from '@/lib/api/user';
 import { createClient } from '@/lib/supabase/client';
 import { css } from '@/styled-system/css';
 import { buildEditPageUrl } from '@/utils/navigation';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type React from 'react';
-import { useEffect, useState, useTransition } from 'react';
+import { useCallback, useEffect, useState, useTransition } from 'react';
 import { DeleteConfirmModal } from '../ui/DeleteConfirmModal';
 import { SearchBar } from './SearchBar';
 import { UserCard } from './UserCard';
@@ -62,6 +62,7 @@ export const UserListClient = ({
   // モーダル用の状態を追加
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Server Componentから新しいデータを受け取ったら更新
   useEffect(() => {
@@ -264,6 +265,35 @@ export const UserListClient = ({
     setUserToDelete(null);
   };
 
+  // CSVダウンロード処理
+  const handleExportCSV = useCallback(async () => {
+    try {
+      setIsExporting(true);
+      const csvContent = await exportUsersCSVAction({
+        searchQuery,
+        filterRole,
+        sortByJoinedDate,
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+      link.href = url;
+      link.download = `ユーザー一覧_${dateStr}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('CSVエクスポートに失敗しました:', error);
+      alert('CSVエクスポートに失敗しました');
+    } finally {
+      setIsExporting(false);
+    }
+  }, [searchQuery, filterRole, sortByJoinedDate]);
+
   return (
     <>
       {isPending && (
@@ -306,6 +336,8 @@ export const UserListClient = ({
         handleSortByJoinedDate={handleSortByJoinedDate}
         handleFilterRole={handleFilterRole}
         userTypes={userTypes}
+        handleExportCSV={handleExportCSV}
+        isExporting={isExporting}
       />
 
       {/* テーブル部分 - デスクトップ表示 */}
