@@ -2,42 +2,43 @@
 node_modules/
 .pnpm-store/
 
-# Next.js
+# Build
 .next/
+dist/
 out/
 
-# PandaCSS generated
+# Styled system (generated)
 styled-system/
 
-# Environment
+# Environment variables
 .env
 .env.local
 .env.*.local
 .dev.vars
 
-# IDE
-.vscode/
-.idea/
-
 # OS
 .DS_Store
 Thumbs.db
 
-# Build
-dist/
-build/
-
 # PM2
 ecosystem.config.cjs
-
-# Logs
+.pm2/
+pids/
+logs/
 *.log
-npm-debug.log*
-pnpm-debug.log*
 
-# Wrangler
-.wrangler/
+# IDE
+.idea/
+*.swp
+*.swo
+
+# Panda CSS generated
+smg-front/styled-system/
+smg-dashboard/styled-system/
+
+# Lock files are kept (important for reproducible builds)
 
 # Misc
-*.backup
-*.bak
+lefthook.yml
+.npmrc
+.vscode/
