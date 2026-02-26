@@ -8,7 +8,7 @@ export const ROUTE_DEFINITION: { label: string; href: string }[] = [
 	{ label: 'SMGラジオ', href: '/radio' },
 	{ label: '講師に質問', href: '/questions' },
 	{ label: 'よくある質問', href: '/faq' },
-	{ label: '簿記講座', href: '/bookkeeping' },
+	{ label: '簿記3期', href: '/bookkeeping' },
 ];
 
 export const DEFAULT_LOCALE = 'Asia/Tokyo';
