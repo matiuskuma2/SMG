@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Next.js
+.next/
+out/
+
+# PandaCSS generated
+styled-system/
+
+# Environment
+.env
+.env.local
+.env.*.local
+.dev.vars
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+dist/
+build/
+
+# PM2
+ecosystem.config.cjs
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Wrangler
+.wrangler/
+
+# Misc
+*.backup
+*.bak

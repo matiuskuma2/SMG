@@ -1,0 +1,13 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": "PZU5RD7FLN.net.swooo.smgapp.dev",
+        "paths": [
+          "/nfc-profile/*"
+        ]
+      }
+    ]
+  }
+}

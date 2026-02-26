@@ -1,0 +1,50 @@
+{
+  "name": "smg_front",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "prepare": "panda codegen",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "biome lint --error-on-warnings .",
+    "format": "biome format --write .",
+    "gen:supabase": "supabase gen types typescript --project-id dpnlntnpyykcjztyarzf > src/lib/supabase/types.ts && pnpx better-supabase-types -i src/lib/supabase/types.ts -f"
+  },
+  "dependencies": {
+    "@ark-ui/react": "^5.26.2",
+    "@internationalized/date": "^3.10.0",
+    "@radix-ui/react-compose-refs": "^1.1.2",
+    "@react-aria/button": "^3.14.2",
+    "@react-aria/calendar": "^3.9.2",
+    "@react-stately/calendar": "^3.9.0",
+    "@sendgrid/mail": "^8.1.5",
+    "@supabase/ssr": "^0.6.1",
+    "@supabase/supabase-js": "^2.49.4",
+    "@tanstack/react-query": "^5.90.8",
+    "@types/pdfkit": "^0.17.5",
+    "dayjs": "^1.11.13",
+    "lucide-react": "^0.487.0",
+    "next": "14.2.35",
+    "pdfkit": "^0.17.2",
+    "quill": "^2.0.3",
+    "quill-resize-image": "^1.0.11",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-icons": "^5.5.0",
+    "react-quill-new": "^3.6.0",
+    "sharp": "^0.34.2",
+    "stripe": "^18.0.0",
+    "subset-font": "^2.4.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "@pandacss/dev": "^0.53.3",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "lefthook": "^1.11.6",
+    "supabase": "^2.24.3",
+    "typescript": "^5"
+  }
+}

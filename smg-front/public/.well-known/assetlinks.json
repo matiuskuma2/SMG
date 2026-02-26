@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "net.swooo.smgapp.dev",
+      "sha256_cert_fingerprints": [
+        "87:6C:2C:6F:E4:B8:81:87:8D:D5:3A:8D:C3:69:CB:1B:F2:19:2A:AF:CD:93:49:ED:92:3C:F4:12:A1:94:60:C7"
+      ]
+    }
+  }
+]

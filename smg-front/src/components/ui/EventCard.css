@@ -1,0 +1,43 @@
+/* イベントタイプのラベルスタイル */
+.eventType {
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* 各イベントタイプの色 */
+.eventType-定例会 {
+  background-color: #BEE3F8;
+  color: #2B6CB0;
+}
+
+.eventType-PDCA実践会議 {
+  background-color: #C6F6D5;
+  color: #276749;
+}
+
+.eventType-5大都市グループ相談会\&交流会 {
+  background-color: #E9D8FD;
+  color: #553C9A;
+}
+
+.eventType-簿記講座 {
+  background-color: #FEEBC8;
+  color: #C05621;
+}
+
+.eventType-オンラインセミナー {
+  background-color: #B2F5EA;
+  color: #285E61;
+}
+
+.eventType-特別セミナー {
+  background-color: #FED7D7;
+  color: #C53030;
+}
+
+.eventType-default {
+  background-color: #EDF2F7;
+  color: #4A5568;
+} 

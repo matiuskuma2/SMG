@@ -1,0 +1,32 @@
+const routeDefs = {
+  user: ['/userlist'],
+  content: ['/'],
+  message: ['/direct-message'],
+  analysis: [],
+  portal: [],
+  individualConsultation: ['/'],
+  settings: ['/zoom-meeting'],
+  receipt: ['/receipt-issue'],
+};
+
+export type RouteDefsType = typeof routeDefs;
+
+export const includeCurrent = (path: string, target: keyof RouteDefsType) => {
+  const routes = routeDefs[target] as string[];
+  return routes.includes(path);
+};
+
+/**
+ * @see https://github.com/mui/material-ui/blob/master/packages/mui-material/src/styles/createTransitions.js#L35
+ */
+export const getAutoHeightDuration = (height: number | undefined) => {
+  if (!height) return 0;
+
+  const constant = height / 36;
+
+  // https://www.desmos.com/calculator/vbrp3ggqet
+  return Math.min(
+    Math.round((4 + 15 * constant ** 0.25 + constant / 5) * 10),
+    3000,
+  );
+};

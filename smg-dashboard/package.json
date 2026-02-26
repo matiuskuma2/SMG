@@ -1,0 +1,53 @@
+{
+  "name": "smg_front",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "prepare": "panda codegen && lefthook install",
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start",
+    "lint": "biome lint --error-on-warnings .",
+    "format": "biome format --write .",
+    "gen:supabase": "supabase gen types typescript --project-id dpnlntnpyykcjztyarzf > src/lib/supabase/types.ts && pnpx better-supabase-types -i src/lib/supabase/types.ts -f",
+    "gen:type-helpers": "node scripts/generate-type-helpers.js",
+    "gen:types": "pnpm gen:supabase && pnpm gen:type-helpers"
+  },
+  "dependencies": {
+    "@sendgrid/mail": "^8.1.5",
+    "@supabase/ssr": "^0.6.1",
+    "@supabase/supabase-js": "^2.49.4",
+    "@vimeo/vimeo": "^3.0.3",
+    "dayjs": "^1.11.13",
+    "google-auth-library": "^9.15.1",
+    "googleapis": "^149.0.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.2 ",
+    "lucide-react": "^0.487.0",
+    "next": "14.2.35",
+    "quill": "^2.0.3",
+    "quill-resize-image": "^1.0.11",
+    "radix-ui": "^1.4.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-icons": "^5.5.0",
+    "react-quill-new": "^3.6.0",
+    "sharp": "^0.34.2",
+    "stripe": "^18.2.1",
+    "uuid": "^11.1.0",
+    "vimeo": "^2.3.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "@pandacss/dev": "^0.53.3",
+    "@types/node": "^20",
+    "@types/quill": "^2.0.14",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "@types/stripe": "^8.0.417",
+    "@types/uuid": "^10.0.0",
+    "lefthook": "^1.11.6",
+    "supabase": "^2.24.3",
+    "typescript": "^5"
+  }
+}

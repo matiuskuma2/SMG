@@ -1,0 +1,16 @@
+pre-commit:
+  parallel: true
+  skip:
+    - merge
+  jobs:
+    - name: lint script
+      glob: '**/*.{ts,tsx,js,jsx}'
+      run: pnpm biome check --no-errors-on-unmatched --files-ignore-unknown=true --colors=off {staged_files}
+
+    - name: fomat script
+      glob: '**/*.{ts,tsx,js,jsx}'
+      run: pnpm biome check --write --no-errors-on-unmatched --files-ignore-unknown=true --colors=off {staged_files}
+
+    - name: tsc
+      glob: '**/*.{ts,tsx}'
+      run: pnpm tsc --noEmit
