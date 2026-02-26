@@ -42,3 +42,4 @@ smg-dashboard/styled-system/
 lefthook.yml
 .npmrc
 .vscode/
+smg-front/core

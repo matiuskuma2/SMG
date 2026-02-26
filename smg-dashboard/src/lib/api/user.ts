@@ -84,10 +84,10 @@ export async function getUsersAction(
       .is('deleted_at', null)
       .or('deleted_at.is.null', { foreignTable: 'trn_group_user' });
 
-    // 検索条件の適用（usernameとemailのみ）
+    // 検索条件の適用（username, email, phone_number）
     if (searchQuery) {
       query = query.or(
-        `username.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`,
+        `username.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,phone_number.ilike.%${searchQuery}%`,
       );
     }
 
