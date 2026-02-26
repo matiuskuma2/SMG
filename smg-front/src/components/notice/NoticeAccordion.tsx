@@ -2,7 +2,7 @@ import { RichContentDisplay } from '@/features/editer/RichContentDisplay';
 import { useIsInstructor } from '@/hooks/useIsInstructor';
 import { getNoticeFiles } from '@/lib/api/notice';
 import { css } from '@/styled-system/css';
-import { Download, FileText } from 'lucide-react';
+import { Check, Download, FileText, Link as LinkIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { FaArrowDown, FaArrowUp } from 'react-icons/fa6';
 import { getCategoryColor } from './categoryColors';
@@ -24,9 +24,29 @@ const NoticeAccordion: React.FC<NoticeAccordionProps> = ({
 	const [files, setFiles] = useState<NoticeFile[]>([]);
 	const [filesLoading, setFilesLoading] = useState(false);
 	const [hasFetchedFiles, setHasFetchedFiles] = useState(false);
+	const [copied, setCopied] = useState(false);
 
 	// カテゴリの色を事前に計算
 	const categoryColors = category ? getCategoryColor(category.name) : null;
+
+	const handleCopyLink = async (e: React.MouseEvent) => {
+		e.stopPropagation();
+		const url = `${window.location.origin}/notice/${noticeId}`;
+		try {
+			await navigator.clipboard.writeText(url);
+			setCopied(true);
+			setTimeout(() => setCopied(false), 2000);
+		} catch {
+			const textArea = document.createElement('textarea');
+			textArea.value = url;
+			document.body.appendChild(textArea);
+			textArea.select();
+			document.execCommand('copy');
+			document.body.removeChild(textArea);
+			setCopied(true);
+			setTimeout(() => setCopied(false), 2000);
+		}
+	};
 
 	const handleEdit = (e: React.MouseEvent) => {
 		e.stopPropagation();
@@ -170,6 +190,32 @@ const NoticeAccordion: React.FC<NoticeAccordionProps> = ({
 					<span className={css({ ml: '4' })}>
 						{isOpen ? <FaArrowUp /> : <FaArrowDown />}
 					</span>
+				</button>
+				<button
+					type="button"
+					onClick={handleCopyLink}
+					title={copied ? 'コピーしました' : 'この記事のURLをコピー'}
+					className={css({
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						width: '32px',
+						height: '32px',
+						borderRadius: 'md',
+						bg: copied ? 'green.50' : 'gray.50',
+						color: copied ? 'green.600' : 'gray.400',
+						border: '1px solid',
+						borderColor: copied ? 'green.200' : 'gray.200',
+						cursor: 'pointer',
+						transition: 'all 0.2s',
+						flexShrink: 0,
+						_hover: {
+							bg: copied ? 'green.100' : 'gray.100',
+							color: copied ? 'green.700' : 'gray.600',
+						},
+					})}
+				>
+					{copied ? <Check size={14} /> : <LinkIcon size={14} />}
 				</button>
 				{!isInstructorLoading && isInstructor && (
 					<button

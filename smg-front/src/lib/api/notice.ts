@@ -272,6 +272,76 @@ export async function getNoticeByIntId(
 }
 
 /**
+ * UUIDでお知らせ単体を取得する（単体表示ページ用）
+ */
+export async function getNoticeByUUID(
+	noticeUUID: string,
+): Promise<{
+	notice_id: string;
+	title: string;
+	content: string;
+	publish_start_at: string | null;
+	created_at: string | null;
+	category?: {
+		id: string;
+		name: string;
+		description?: string;
+	};
+} | null> {
+	const supabase = createClient();
+
+	const { data, error } = await supabase
+		.from('mst_notice')
+		.select(
+			`
+			notice_id,
+			title,
+			content,
+			publish_start_at,
+			created_at,
+			category_id
+		`,
+		)
+		.eq('notice_id', noticeUUID)
+		.is('deleted_at', null)
+		.eq('is_draft', false)
+		.single();
+
+	if (error || !data) {
+		console.error('お知らせの取得に失敗しました:', error);
+		return null;
+	}
+
+	// カテゴリー情報を取得
+	let category: { id: string; name: string; description?: string } | undefined;
+	if (data.category_id) {
+		const { data: catData } = await supabase
+			.from('mst_notice_category')
+			.select('category_id, category_name, description')
+			.eq('category_id', data.category_id)
+			.is('deleted_at', null)
+			.single();
+
+		if (catData) {
+			category = {
+				id: catData.category_id,
+				name: catData.category_name,
+				description: catData.description || undefined,
+			};
+		}
+	}
+
+	return {
+		notice_id: data.notice_id,
+		title: data.title,
+		content: data.content,
+		publish_start_at: data.publish_start_at,
+		created_at: data.created_at,
+		category,
+	};
+}
+
+/**
  * お知らせIDに紐づくファイル一覧を取得する
  */
 export async function getNoticeFiles(noticeId: string): Promise<NoticeFile[]> {
