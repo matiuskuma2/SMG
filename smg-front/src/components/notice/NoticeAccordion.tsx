@@ -17,6 +17,8 @@ const NoticeAccordion: React.FC<NoticeAccordionProps> = ({
 	category,
 	isOpen,
 	onToggle,
+	basePath = '/notice',
+	editType = 'notice',
 }) => {
 	const [height, setHeight] = useState('0px');
 	const contentRef = useRef<HTMLDivElement>(null);
@@ -31,7 +33,7 @@ const NoticeAccordion: React.FC<NoticeAccordionProps> = ({
 
 	const handleCopyLink = async (e: React.MouseEvent) => {
 		e.stopPropagation();
-		const url = `${window.location.origin}/notice/${noticeId}`;
+		const url = `${window.location.origin}${basePath}/${noticeId}`;
 		try {
 			await navigator.clipboard.writeText(url);
 			setCopied(true);
@@ -53,7 +55,7 @@ const NoticeAccordion: React.FC<NoticeAccordionProps> = ({
 		const dashboardUrl =
 			process.env.NEXT_PUBLIC_DASHBOARD_URL ||
 			'https://smg-dashboard.vercel.app';
-		window.open(`${dashboardUrl}/notice/edit/${noticeId}`, '_blank');
+		window.open(`${dashboardUrl}/${editType}/edit/${noticeId}`, '_blank');
 	};
 
 	const downloadFile = async (fileUrl: string, fileName: string) => {

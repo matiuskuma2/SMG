@@ -25,6 +25,10 @@ type NoticeFormProps = {
   onSubmit: (data: NoticeFormData, isDraft?: boolean) => void;
   onCancel: () => void;
   loading?: boolean;
+  /** カテゴリの種類フィルタ ('notice' | 'shibu' | 'master')。省略時は全カテゴリ表示 */
+  categoryType?: string;
+  /** フォームタイトルの接頭辞（デフォルト: 'お知らせ'） */
+  formLabel?: string;
 };
 
 const inputStyle = css({
@@ -43,6 +47,8 @@ export const NoticeForm = ({
   onSubmit,
   onCancel,
   loading = false,
+  categoryType,
+  formLabel = 'お知らせ',
 }: NoticeFormProps) => {
   const [description, setDescription] = useState<string>(
     initialData.content || '',
@@ -108,11 +114,18 @@ export const NoticeForm = ({
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('mst_notice_category')
-          .select('category_id, category_name')
+          .select('category_id, category_name, description')
           .is('deleted_at', null)
           .order('created_at');
+
+        // カテゴリタイプでフィルタ
+        if (categoryType) {
+          query = query.eq('description', categoryType);
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
 
@@ -242,7 +255,7 @@ export const NoticeForm = ({
             pb: '4',
           })}
         >
-          {isEditing ? 'お知らせの編集' : 'お知らせの作成'}
+          {isEditing ? `${formLabel}の編集` : `${formLabel}の作成`}
         </h1>
 
         <form

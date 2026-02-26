@@ -7,25 +7,22 @@ import { getReturnQuery } from '@/utils/navigation';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-export default function NoticeEditPage() {
+export default function MasterCourseEditPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
   const noticeId = params.noticeId as string;
 
-  // ステート定義
   const [notice, setNotice] = useState<NoticeFormData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // リストページに戻る際のURL（クエリパラメータを保持）
   const getReturnUrl = () => {
     const returnQuery = getReturnQuery(searchParams);
-    return returnQuery ? `/noticelist?${returnQuery}` : '/noticelist';
+    return returnQuery ? `/mastercourselist?${returnQuery}` : '/mastercourselist';
   };
 
-  // お知らせデータの取得
   useEffect(() => {
     const fetchNotice = async () => {
       try {
@@ -38,16 +35,15 @@ export default function NoticeEditPage() {
 
         if (error) {
           console.error('Error fetching notice:', error);
-          setError('お知らせの取得に失敗しました');
+          setError('マスター講座投稿の取得に失敗しました');
           return;
         }
 
         if (!data) {
-          setError('お知らせが見つかりませんでした');
+          setError('マスター講座投稿が見つかりませんでした');
           return;
         }
 
-        // 表示グループを取得
         const { data: groupData } = await supabase
           .from('trn_notice_visible_group')
           .select('group_id')
@@ -55,7 +51,6 @@ export default function NoticeEditPage() {
 
         const visibleGroupIds = groupData?.map((item) => item.group_id) || [];
 
-        // お知らせファイルを取得
         const { data: fileData, error: fileError } = await supabase
           .from('trn_notice_file')
           .select('file_id, file_url, file_name, display_order')
@@ -67,7 +62,6 @@ export default function NoticeEditPage() {
           console.error('Error fetching notice files:', fileError);
         }
 
-        // ファイルデータをNoticeFile型に変換
         const noticeFiles: NoticeFile[] = fileData
           ? fileData.map((file) => ({
               file_id: file.file_id,
@@ -80,7 +74,6 @@ export default function NoticeEditPage() {
             }))
           : [];
 
-        // データをNoticeFormData型に変換
         const noticeData: NoticeFormData = {
           notice_id: data.notice_id,
           title: data.title,
@@ -99,7 +92,7 @@ export default function NoticeEditPage() {
         setNotice(noticeData);
       } catch (error) {
         console.error('Error in fetchNotice:', error);
-        setError('お知らせの取得に失敗しました');
+        setError('マスター講座投稿の取得に失敗しました');
       } finally {
         setLoading(false);
       }
@@ -112,7 +105,6 @@ export default function NoticeEditPage() {
     try {
       setLoading(true);
 
-      // データをSupabaseの形式に変換
       const updateData = {
         title: data.title,
         content: data.content,
@@ -134,11 +126,10 @@ export default function NoticeEditPage() {
 
       if (error) {
         console.error('Error updating notice:', error);
-        setError('お知らせの更新に失敗しました');
+        setError('マスター講座投稿の更新に失敗しました');
         return;
       }
 
-      // 既存の表示グループを削除
       const { error: deleteError } = await supabase
         .from('trn_notice_visible_group')
         .delete()
@@ -150,7 +141,6 @@ export default function NoticeEditPage() {
         return;
       }
 
-      // 新しい表示グループを保存
       if (data.visible_group_ids && data.visible_group_ids.length > 0) {
         const noticeGroupData = data.visible_group_ids.map((groupId) => ({
           notice_id: noticeId,
@@ -168,20 +158,16 @@ export default function NoticeEditPage() {
         }
       }
 
-      // ファイルを保存（あれば）
       if (data.files && data.files.length > 0) {
-        // まず既存のすべてのファイルを論理削除
         await supabase
           .from('trn_notice_file')
           .update({ deleted_at: new Date().toISOString() })
           .eq('notice_id', noticeId)
           .is('deleted_at', null);
 
-        // 新しいファイルを保存
         for (const file of data.files) {
           let fileUrl = file.file_url;
 
-          // 新しいファイルがアップロードされた場合
           if (file.file) {
             const fileExt = file.file.name.split('.').pop();
             const fileName = `${Date.now()}.${fileExt}`;
@@ -214,7 +200,6 @@ export default function NoticeEditPage() {
               display_order: file.display_order,
             };
 
-            // 既存のファイルがある場合は更新、なければ挿入
             if (file.file_id && !file.file_id.startsWith('temp-')) {
               await supabase
                 .from('trn_notice_file')
@@ -231,18 +216,16 @@ export default function NoticeEditPage() {
         }
       }
 
-      // 成功時に一覧画面に遷移
       router.push(getReturnUrl());
     } catch (error) {
       console.error('Error in handleSubmit:', error);
-      setError('お知らせの更新に失敗しました');
+      setError('マスター講座投稿の更新に失敗しました');
     } finally {
       setLoading(false);
     }
   };
 
   const handleCancel = () => {
-    // 前のページに戻る
     router.push(getReturnUrl());
   };
 
@@ -268,7 +251,7 @@ export default function NoticeEditPage() {
   if (!notice) {
     return (
       <div className="p-6 text-center">
-        お知らせが見つかりませんでした
+        マスター講座投稿が見つかりませんでした
         <button
           type="button"
           onClick={handleCancel}
@@ -287,7 +270,8 @@ export default function NoticeEditPage() {
       onSubmit={handleSubmit}
       onCancel={handleCancel}
       loading={loading}
-      categoryType="notice"
+      categoryType="master"
+      formLabel="マスター講座投稿"
     />
   );
 }

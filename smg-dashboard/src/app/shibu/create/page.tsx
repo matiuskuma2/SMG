@@ -6,20 +6,19 @@ import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-export default function NoticeCreatePage() {
+export default function ShibuCreatePage() {
   const router = useRouter();
   const supabase = createClient();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (data: NoticeFormData, isDraft = false) => {
-    if (loading) return; // 既に処理中の場合は何もしない
+    if (loading) return;
 
     try {
       setLoading(true);
       setError(null);
 
-      // データをSupabaseの形式に変換
       const insertData = {
         title: data.title,
         content: data.content,
@@ -42,12 +41,12 @@ export default function NoticeCreatePage() {
         .single();
 
       if (error) {
-        console.error('Error creating notice:', error);
-        setError('お知らせの作成に失敗しました');
+        console.error('Error creating shibu notice:', error);
+        setError('支部投稿の作成に失敗しました');
         return;
       }
 
-      // 表示グループが指定されている場合は中間テーブルに保存
+      // 表示グループの保存
       if (data.visible_group_ids && data.visible_group_ids.length > 0) {
         const noticeGroupData = data.visible_group_ids.map((groupId) => ({
           notice_id: insertedNotice.notice_id,
@@ -65,12 +64,11 @@ export default function NoticeCreatePage() {
         }
       }
 
-      // ファイルを保存
+      // ファイル保存
       if (data.files && data.files.length > 0) {
         for (const file of data.files) {
           let fileUrl = file.file_url;
 
-          // 新しいファイルがアップロードされた場合
           if (file.file) {
             const fileExt = file.file.name.split('.').pop();
             const fileName = `${Date.now()}.${fileExt}`;
@@ -116,18 +114,16 @@ export default function NoticeCreatePage() {
         }
       }
 
-      // 成功時に一覧画面に遷移
-      router.push('/noticelist');
+      router.push('/shibulist');
     } catch (error) {
       console.error('Error in handleSubmit:', error);
-      setError('お知らせの作成に失敗しました');
+      setError('支部投稿の作成に失敗しました');
     } finally {
       setLoading(false);
     }
   };
 
   const handleCancel = () => {
-    // 前のページに戻る
     router.back();
   };
 
@@ -152,7 +148,8 @@ export default function NoticeCreatePage() {
       onSubmit={handleSubmit}
       onCancel={handleCancel}
       loading={loading}
-      categoryType="notice"
+      categoryType="shibu"
+      formLabel="支部投稿"
     />
   );
 }

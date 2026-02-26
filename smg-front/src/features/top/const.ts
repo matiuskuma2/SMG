@@ -16,6 +16,8 @@ export const ROUTE_DEFINITION: RouteDefinition[] = [
 	{ label: '講師に質問', href: '/questions' },
 	{ label: 'よくある質問', href: '/faq' },
 	{ label: '簿記3期', href: '/bookkeeping', requiredGroup: '簿記3期' },
+	{ label: '支部', href: '/shibu', requiredGroup: '支部' },
+	{ label: 'マスター講座', href: '/master-course', requiredGroup: 'マスター講座' },
 ];
 
 export const DEFAULT_LOCALE = 'Asia/Tokyo';

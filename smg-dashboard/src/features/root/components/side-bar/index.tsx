@@ -17,6 +17,8 @@ import {
   FaRightFromBracket,
   FaUser,
   FaUsers,
+  FaBuilding,
+  FaGraduationCap,
 } from 'react-icons/fa6';
 import { LuEllipsisVertical, LuMenu } from 'react-icons/lu';
 import { MdEdit, MdFiberNew, MdSettings } from 'react-icons/md';
@@ -403,6 +405,36 @@ export const SideBar = () => {
             >
               <Icon icon={<FaNewspaper size={20} />} />
               <NavItem>お知らせ</NavItem>
+            </button>
+          </li>
+
+          <li>
+            <button
+              type="button"
+              className={
+                isCurrentPage('/shibulist') || isCurrentPage('/shibu/')
+                  ? activeNavItemStyle
+                  : navItemStyle
+              }
+              onClick={() => router.push('/shibulist')}
+            >
+              <Icon icon={<FaBuilding size={20} />} />
+              <NavItem>支部</NavItem>
+            </button>
+          </li>
+
+          <li>
+            <button
+              type="button"
+              className={
+                isCurrentPage('/mastercourselist') || isCurrentPage('/mastercourse/')
+                  ? activeNavItemStyle
+                  : navItemStyle
+              }
+              onClick={() => router.push('/mastercourselist')}
+            >
+              <Icon icon={<FaGraduationCap size={20} />} />
+              <NavItem>マスター講座</NavItem>
             </button>
           </li>
 

@@ -12,16 +12,24 @@ export type NoticeCategoryOption = {
 
 /**
  * 全てのお知らせカテゴリーを取得する
+ * @param categoryType - 'notice' | 'shibu' | 'master' でフィルタ。省略時は全カテゴリ
  */
-export async function getNoticeCategories(): Promise<NoticeCategoryOption[]> {
+export async function getNoticeCategories(categoryType?: 'notice' | 'shibu' | 'master'): Promise<NoticeCategoryOption[]> {
   const supabase = createClient();
   
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('mst_notice_category')
       .select('category_id, category_name, description')
       .is('deleted_at', null)
       .order('created_at');
+
+    // カテゴリタイプでフィルタ
+    if (categoryType) {
+      query = query.eq('description', categoryType);
+    }
+    
+    const { data, error } = await query;
     
     if (error) {
       // テーブルが存在しない場合は空配列を返す

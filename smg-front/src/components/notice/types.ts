@@ -55,6 +55,10 @@ export type NoticeAccordionItem = {
 export type NoticeAccordionProps = NoticeAccordionItem & {
 	isOpen: boolean;
 	onToggle: (id: number) => void;
+	/** 記事URLのベースパス（デフォルト: /notice） */
+	basePath?: string;
+	/** 管理画面の編集パス種別（デフォルト: notice） */
+	editType?: string;
 };
 
 // SearchSection用の型定義

@@ -7,7 +7,6 @@ import SearchSection from '@/components/notice/SearchSection';
 import type { NoticePageSearchParams } from '@/components/notice/types';
 import {
 	type NoticeListItem,
-	getNoticeByIntId,
 	getNotices,
 } from '@/lib/api/notice';
 import {
@@ -19,7 +18,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import type React from 'react';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 
-const NoticeListContent = () => {
+const ITEMS_PER_PAGE = 5;
+
+const ShibuListContent = () => {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 
@@ -28,7 +29,6 @@ const NoticeListContent = () => {
 		1,
 		Number.parseInt(searchParams.get('page') || '1', 10),
 	);
-	const noticeIdParam = searchParams.get('noticeId');
 	const searchTermParam = searchParams.get('search') || '';
 	const sortOptionParam = (searchParams.get('sort') || 'date_desc') as
 		| 'date_desc'
@@ -65,10 +65,7 @@ const NoticeListContent = () => {
 				}
 			}
 
-			// 検索条件が変更されたらnoticeIdを削除（再検索ループを防ぐ）
-			newParams.delete('noticeId');
-
-			router.push(`/notice?${newParams.toString()}`);
+			router.push(`/shibu?${newParams.toString()}`);
 		},
 		[router, searchParams],
 	);
@@ -126,25 +123,20 @@ const NoticeListContent = () => {
 	}, [updateUrlParams, searchQuery, sortOptionParam, categoryIdParam]);
 
 	useEffect(() => {
-		// noticeIdParamがあり検索クエリがない場合はリダイレクト待ちなのでスキップ
-		if (noticeIdParam && !searchTermParam) {
-			return;
-		}
-
 		const fetchData = async () => {
 			setLoading(true);
 			try {
-				// カテゴリーとお知らせを並行して取得
+				// 支部カテゴリーと支部お知らせを並行して取得
 				const [fetchedCategories, { notices: fetchedNotices, totalCount }] =
 					await Promise.all([
-						getNoticeCategories('notice'),
+						getNoticeCategories('shibu'),
 						getNotices(
 							searchTermParam,
 							sortOptionParam,
 							categoryIdParam,
 							currentPage,
 							ITEMS_PER_PAGE,
-							'notice',
+							'shibu',
 						),
 					]);
 
@@ -159,51 +151,13 @@ const NoticeListContent = () => {
 		};
 
 		fetchData();
-	}, [searchTermParam, sortOptionParam, categoryIdParam, currentPage, noticeIdParam]);
+	}, [searchTermParam, sortOptionParam, categoryIdParam, currentPage]);
 
-	// noticeIdParamがあり、検索クエリがない場合、お知らせのタイトルで検索状態にする
-	useEffect(() => {
-		if (noticeIdParam && !searchTermParam) {
-			const targetNoticeId = Number.parseInt(noticeIdParam, 10);
-
-			if (!isNaN(targetNoticeId)) {
-				// お知らせのタイトルを取得して検索クエリにセット
-				const fetchAndRedirect = async () => {
-					const noticeInfo = await getNoticeByIntId(targetNoticeId);
-					if (noticeInfo) {
-						// タイトルで検索した状態にリダイレクト（window.location.replaceでハードナビゲーション）
-						const newUrl = `/notice?search=${encodeURIComponent(noticeInfo.title)}&noticeId=${noticeIdParam}`;
-						window.location.replace(newUrl);
-					}
-				};
-				fetchAndRedirect();
-			}
-		}
-	}, [noticeIdParam, searchTermParam]);
-
-	// 検索結果にお知らせが含まれている場合、アコーディオンを開く
-	useEffect(() => {
-		if (noticeIdParam && notices.length > 0) {
-			const targetNoticeId = Number.parseInt(noticeIdParam, 10);
-
-			if (!isNaN(targetNoticeId)) {
-				const targetNotice = notices.find(
-					(notice) => notice.id === targetNoticeId,
-				);
-
-				if (targetNotice) {
-					setOpenNoticeId(targetNoticeId);
-				}
-			}
-		}
-	}, [noticeIdParam, notices]);
-
-	const ITEMS_PER_PAGE = 5;
 	const totalPages = Math.ceil(totalNotices / ITEMS_PER_PAGE);
 
 	useEffect(() => {
 		if (totalPages > 0 && currentPage > totalPages) {
-			router.push(`/notice?page=${totalPages}`);
+			router.push(`/shibu?page=${totalPages}`);
 		}
 	}, [currentPage, router, totalPages]);
 
@@ -247,7 +201,7 @@ const NoticeListContent = () => {
 						mt: '6',
 					})}
 				>
-					該当するお知らせは見つかりませんでした。
+					該当する支部のお知らせは見つかりませんでした。
 				</p>
 			) : (
 				<>
@@ -264,12 +218,14 @@ const NoticeListContent = () => {
 							onToggle={() => {
 								setOpenNoticeId(openNoticeId === notice.id ? null : notice.id);
 							}}
+							basePath="/shibu"
+							editType="notice"
 						/>
 					))}
 					<ListPagination
 						currentPage={currentPage}
 						totalPages={totalPages}
-						basePath="/notice"
+						basePath="/shibu"
 					/>
 				</>
 			)}
@@ -277,12 +233,12 @@ const NoticeListContent = () => {
 	);
 };
 
-const NoticeListPaginated = () => {
+const ShibuListPaginated = () => {
 	return (
 		<Suspense fallback={<div>Loading...</div>}>
-			<NoticeListContent />
+			<ShibuListContent />
 		</Suspense>
 	);
 };
 
-export default NoticeListPaginated;
+export default ShibuListPaginated;

@@ -70,6 +70,7 @@ async function getUserGroupIds(): Promise<string[]> {
 
 /**
  * お知らせ一覧を取得する
+ * @param categoryType - カテゴリの種類で絞り込み ('notice' | 'shibu' | 'master')。省略時はお知らせ（notice + カテゴリなし）
  */
 export async function getNotices(
 	searchTerm?: string,
@@ -77,6 +78,7 @@ export async function getNotices(
 	categoryId?: string,
 	page?: number,
 	pageSize?: number,
+	categoryType?: 'notice' | 'shibu' | 'master',
 ): Promise<{ notices: NoticeListItem[]; totalCount: number }> {
 	const supabase = createClient();
 	const nowUTC = getCurrentUTC();
@@ -131,6 +133,25 @@ export async function getNotices(
 	// カテゴリーIDによるフィルター
 	if (categoryId) {
 		baseQuery = baseQuery.eq('category_id', categoryId);
+	}
+
+	// カテゴリタイプによるフィルター（支部/マスター講座/お知らせ）
+	if (categoryType) {
+		// カテゴリタイプに対応するカテゴリIDを取得
+		const { data: typedCategories } = await supabase
+			.from('mst_notice_category')
+			.select('category_id')
+			.eq('description', categoryType)
+			.is('deleted_at', null);
+
+		const typedCategoryIds = (typedCategories || []).map((c) => c.category_id);
+
+		if (typedCategoryIds.length > 0) {
+			baseQuery = baseQuery.in('category_id', typedCategoryIds);
+		} else {
+			// カテゴリが見つからない場合は空を返す
+			return { notices: [], totalCount: 0 };
+		}
 	}
 
 	// 検索条件があれば適用
