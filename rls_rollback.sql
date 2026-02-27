@@ -1,0 +1,74 @@
+-- ============================================================
+-- SMG経営塾 RLS Migration - ROLLBACK SCRIPT
+-- Date: 2026-02-27
+-- Purpose: Emergency rollback if RLS breaks the application
+-- 
+-- ⚠️ ONLY use this if the application stops working after
+--    applying RLS. This will re-expose all data to anon users.
+-- ============================================================
+
+-- Disable RLS on all tables (re-exposes data)
+ALTER TABLE mst_archive_type DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_beginner_guide_file DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_beginner_guide_item DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_beginner_guide_video DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_consultation DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_consultation_schedule DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_dm_label DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_dm_tag DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_dm_thread DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_event DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_event_archive DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_event_file DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_event_type DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_faq DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_group DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_industry DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_inquiry DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_meeting_link DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_notice DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_notice_category DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_notification DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_notification_settings DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_question_manual DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_radio DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_survey DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_survey_detail DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_theme DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mst_user DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_answer DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_broadcast_history DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_broadcast_target_user DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_consultation_application DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_consultation_attendee DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_consultation_question DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_consultation_question_answer DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_consultation_schedule_candidate DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_dm_memo DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_dm_message DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_dm_message_image DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_dm_thread_label DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_dm_thread_tag DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_event_archive_file DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_event_archive_video DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_event_archive_visible_group DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_event_attendee DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_event_question DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_event_question_answer DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_event_visible_group DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_gather_attendee DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_group_user DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_inquiry_answer DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_invite DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_nfc_exchange DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_notice_file DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_notice_visible_group DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_question DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_radio_visible_group DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_receipt_history DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_survey_answer DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_user_guide_progress DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trn_user_notification DISABLE ROW LEVEL SECURITY;
+
+-- Verify rollback
+SELECT tablename, rowsecurity FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename;
