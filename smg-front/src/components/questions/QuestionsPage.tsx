@@ -5,9 +5,12 @@ import { createClient } from '@/lib/supabase';
 import { createTextSummary } from '@/lib/utils/html';
 import { css } from '@/styled-system/css';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { AiOutlineInfoCircle, AiOutlineQuestionCircle } from 'react-icons/ai';
+import { IoChevronDown, IoChevronUp } from 'react-icons/io5';
 import { QuestionManualModal } from './QuestionManualModal';
+import QuestionForm from './QuestionForm';
+import type { Instructor, QuestionFormValues } from './QuestionForm';
 import type { Question } from './types';
 
 // 表示用に整形された質問型（基本のQuestion型を拡張）
@@ -35,16 +38,125 @@ export const QuestionsPublicPage = () => {
 export const QuestionsPage = () => {
 	const router = useRouter();
 	const searchParams = useSearchParams();
+	const supabase = createClient();
 	const [questions, setQuestions] = useState<QuestionWithDisplay[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+
+	// 質問フォーム関連
+	const [isFormOpen, setIsFormOpen] = useState(true);
+	const [instructors, setInstructors] = useState<Instructor[]>([]);
+	const [userId, setUserId] = useState<string | null>(null);
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [refreshKey, setRefreshKey] = useState(0);
 
 	// クエリパラメータからページ番号を取得（デフォルトは1）
 	const pageParam = searchParams.get('page');
 	const currentPage = pageParam ? Number.parseInt(pageParam) : 1;
 
 	const itemsPerPage = 10;
+
+	// ログインユーザーと講師一覧を取得
+	useEffect(() => {
+		const fetchUserAndInstructors = async () => {
+			try {
+				const {
+					data: { user },
+				} = await supabase.auth.getUser();
+
+				if (user) {
+					setUserId(user.id);
+				}
+
+				// 講師グループのIDを取得
+				const { data: groupData, error: groupError } = await supabase
+					.from('mst_group')
+					.select('group_id')
+					.eq('title', '講師_質問受付グループ')
+					.is('deleted_at', null)
+					.single();
+
+				if (groupError) {
+					console.error('講師グループの取得に失敗しました:', groupError);
+					return;
+				}
+
+				// 講師ユーザーの情報を取得
+				const { data: instructorsData, error: instructorsError } =
+					await supabase
+						.from('trn_group_user')
+						.select(`
+							user_id,
+							mst_user!inner (
+								user_id,
+								username
+							)
+						`)
+						.eq('group_id', groupData.group_id)
+						.is('deleted_at', null)
+						.is('mst_user.deleted_at', null);
+
+				if (instructorsError) {
+					console.error('講師データの取得に失敗しました:', instructorsError);
+					return;
+				}
+
+				if (instructorsData) {
+					setInstructors(
+						instructorsData.map((item) => ({
+							id: item.mst_user.user_id,
+							username: item.mst_user.username,
+						})),
+					);
+				}
+			} catch (error) {
+				console.error('データの取得中にエラーが発生しました:', error);
+			}
+		};
+
+		fetchUserAndInstructors();
+	}, [supabase]);
+
+	// 質問送信ハンドラ
+	const handleQuestionSubmit = useCallback(async (values: QuestionFormValues) => {
+		if (!userId) {
+			alert('ユーザー情報が取得できません。再度ログインしてください。');
+			return;
+		}
+
+		setIsSubmitting(true);
+
+		try {
+			const { error } = await supabase
+				.from('trn_question')
+				.insert([
+					{
+						user_id: userId,
+						instructor_id: values.selectedTeacher,
+						content: values.content,
+						is_anonymous: values.publicTarget === 'private',
+					},
+				])
+				.select();
+
+			if (error) {
+				console.error('質問の投稿に失敗しました:', error);
+				alert('質問の投稿に失敗しました。もう一度お試しください。');
+				return;
+			}
+
+			alert('質問が正常に投稿されました。');
+			setIsFormOpen(false);
+			// 質問一覧をリフレッシュ
+			setRefreshKey((prev) => prev + 1);
+		} catch (error) {
+			console.error('質問投稿中にエラーが発生しました:', error);
+			alert('エラーが発生しました。もう一度お試しください。');
+		} finally {
+			setIsSubmitting(false);
+		}
+	}, [userId, supabase]);
 
 	// Supabaseからデータを取得
 	useEffect(() => {
@@ -132,7 +244,7 @@ export const QuestionsPage = () => {
 		};
 
 		fetchQuestions();
-	}, [currentPage]);
+	}, [currentPage, refreshKey]);
 
 	// 総項目数と総ページ数
 	const [totalItems, setTotalItems] = useState(0);
@@ -145,22 +257,6 @@ export const QuestionsPage = () => {
 		router.push(`/questions?${params.toString()}`);
 	};
 
-	if (isLoading) {
-		return (
-			<div className={css({ textAlign: 'center', py: '10' })}>
-				読み込み中...
-			</div>
-		);
-	}
-
-	if (error) {
-		return (
-			<div className={css({ textAlign: 'center', py: '10', color: 'red.500' })}>
-				{error}
-			</div>
-		);
-	}
-
 	return (
 		<div
 			className={css({
@@ -170,6 +266,7 @@ export const QuestionsPage = () => {
 				px: { base: '4', md: '6' },
 			})}
 		>
+		{/* ヘッダー */}
 		<div
 			className={css({
 				display: 'flex',
@@ -181,7 +278,7 @@ export const QuestionsPage = () => {
 			})}
 		>
 			<h1 className={css({ fontSize: '2xl', fontWeight: 'bold' })}>
-				質問一覧
+				講師に質問
 			</h1>
 
 			<div
@@ -221,14 +318,14 @@ export const QuestionsPage = () => {
 				<button
 					type="button"
 					className={css({
-						bg: '#9D7636',
+						bg: isFormOpen ? 'gray.500' : '#9D7636',
 						color: 'white',
 						px: { base: '3', md: '4' },
 						py: { base: '2', md: '2' },
 						rounded: 'md',
 						fontWeight: 'medium',
 						cursor: 'pointer',
-						_hover: { bg: '#8A6A2F' },
+						_hover: { bg: isFormOpen ? 'gray.600' : '#8A6A2F' },
 						transition: 'background-color 0.2s',
 						display: 'flex',
 						alignItems: 'center',
@@ -237,13 +334,77 @@ export const QuestionsPage = () => {
 						whiteSpace: 'nowrap',
 						flex: { base: '1', sm: '0 0 auto' },
 					})}
-					onClick={() => router.push('/questions/post')}
+					onClick={() => setIsFormOpen(!isFormOpen)}
 				>
-					質問する
+					{isFormOpen ? (
+						<>
+							<IoChevronUp size={16} />
+							フォームを閉じる
+						</>
+					) : (
+						<>
+							<IoChevronDown size={16} />
+							質問する
+						</>
+					)}
 				</button>
 			</div>
 		</div>
 
+			{/* 質問作成フォーム（インライン表示） */}
+			{isFormOpen && (
+				<div
+					className={css({
+						bg: 'white',
+						p: '6',
+						rounded: 'lg',
+						shadow: 'md',
+						mb: '6',
+						border: '1px solid',
+						borderColor: 'gray.200',
+					})}
+				>
+					<h2
+						className={css({
+							fontSize: 'lg',
+							fontWeight: 'bold',
+							mb: '4',
+							pb: '3',
+							borderBottom: '1px solid',
+							borderColor: 'gray.200',
+						})}
+					>
+						質問作成フォーム
+					</h2>
+
+					{userId ? (
+						<QuestionForm
+							initialValues={{
+								publicTarget: '',
+								selectedTeacher:
+									process.env.NEXT_PUBLIC_DEFAULT_INSTRUCTOR_ID || '',
+								content: '',
+							}}
+							instructors={instructors}
+							onSubmit={handleQuestionSubmit}
+							submitButtonText="質問する"
+							isLoading={isSubmitting}
+						/>
+					) : (
+						<div
+							className={css({
+								textAlign: 'center',
+								py: '6',
+								color: 'gray.500',
+							})}
+						>
+							質問するにはログインが必要です
+						</div>
+					)}
+				</div>
+			)}
+
+			{/* 案内メッセージ */}
 			<div
 				className={css({
 					backgroundColor: 'amber.50',
@@ -274,103 +435,124 @@ export const QuestionsPage = () => {
 				</div>
 			</div>
 
-			{/* 質問テーブル */}
-			<div
+			{/* 質問一覧ヘッダー */}
+			<h2
 				className={css({
-					display: 'flex',
-					flexDirection: 'column',
-					gap: '2',
-					mb: '6',
+					fontSize: 'lg',
+					fontWeight: 'bold',
+					mb: '4',
 				})}
 			>
-				{questions.length === 0 ? (
-					<div
-						className={css({
-							textAlign: 'center',
-							py: '8',
-							color: 'gray.500',
-							border: '1px solid',
-							borderColor: 'gray.200',
-							rounded: 'lg',
-							bg: 'white',
-						})}
-					>
-						表示できる質問がありません
-					</div>
-				) : (
-					questions.map((question) => {
-						// 日付フォーマット
-						const date = question.updated_at
-							? new Date(question.updated_at)
-							: new Date();
-						const formattedDate = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+				質問一覧
+			</h2>
 
-						return (
-							<button
-								type="button"
-								key={question.question_id}
-								className={css({
-									bg: 'white',
-									rounded: 'lg',
-									shadow: 'md',
-									p: '4',
-									cursor: 'pointer',
-									border: 'none',
-									width: '100%',
-									textAlign: 'left',
-									_hover: { bg: 'gray.50' },
-									transition: 'background-color 0.2s',
-								})}
-								onClick={() =>
-									router.push(`/questions/${question.question_id}`)
-								}
-							>
-								<div
+			{/* 質問テーブル */}
+			{isLoading ? (
+				<div className={css({ textAlign: 'center', py: '10' })}>
+					読み込み中...
+				</div>
+			) : error ? (
+				<div className={css({ textAlign: 'center', py: '10', color: 'red.500' })}>
+					{error}
+				</div>
+			) : (
+				<div
+					className={css({
+						display: 'flex',
+						flexDirection: 'column',
+						gap: '2',
+						mb: '6',
+					})}
+				>
+					{questions.length === 0 ? (
+						<div
+							className={css({
+								textAlign: 'center',
+								py: '8',
+								color: 'gray.500',
+								border: '1px solid',
+								borderColor: 'gray.200',
+								rounded: 'lg',
+								bg: 'white',
+							})}
+						>
+							表示できる質問がありません
+						</div>
+					) : (
+						questions.map((question) => {
+							// 日付フォーマット
+							const date = question.updated_at
+								? new Date(question.updated_at)
+								: new Date();
+							const formattedDate = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+
+							return (
+								<button
+									type="button"
+									key={question.question_id}
 									className={css({
-										display: 'flex',
-										justifyContent: 'space-between',
-										mb: '2',
+										bg: 'white',
+										rounded: 'lg',
+										shadow: 'md',
+										p: '4',
+										cursor: 'pointer',
+										border: 'none',
+										width: '100%',
+										textAlign: 'left',
+										_hover: { bg: 'gray.50' },
+										transition: 'background-color 0.2s',
 									})}
+									onClick={() =>
+										router.push(`/questions/${question.question_id}`)
+									}
 								>
 									<div
 										className={css({
-											fontSize: 'xs',
-											color: 'gray.500',
 											display: 'flex',
-											alignItems: 'center',
-											gap: '2',
+											justifyContent: 'space-between',
+											mb: '2',
 										})}
 									>
-										<span>{question.instructor_name}</span>
+										<div
+											className={css({
+												fontSize: 'xs',
+												color: 'gray.500',
+												display: 'flex',
+												alignItems: 'center',
+												gap: '2',
+											})}
+										>
+											<span>{question.instructor_name}</span>
+										</div>
+										<div
+											className={css({
+												fontSize: 'xs',
+												display: 'flex',
+												alignItems: 'center',
+												gap: '2',
+											})}
+										>
+											<span className={css({ color: 'gray.500' })}>
+												{formattedDate}
+											</span>
+										</div>
 									</div>
-									<div
-										className={css({
-											fontSize: 'xs',
-											display: 'flex',
-											alignItems: 'center',
-											gap: '2',
-										})}
-									>
-										<span className={css({ color: 'gray.500' })}>
-											{formattedDate}
-										</span>
-									</div>
-								</div>
 
-								<h2
-									className={css({
-										fontWeight: 'medium',
-										mb: '2',
-										lineHeight: 'tight',
-									})}
-								>
-									{question.title}
-								</h2>
-							</button>
-						);
-					})
-				)}
-			</div>
+									<h2
+										className={css({
+											fontWeight: 'medium',
+											mb: '2',
+											lineHeight: 'tight',
+										})}
+									>
+										{question.title}
+									</h2>
+								</button>
+							);
+						})
+					)}
+				</div>
+			)}
 
 			{/* ページネーション */}
 			{totalPages > 1 && (
