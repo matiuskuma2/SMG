@@ -341,7 +341,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const email = rawEmail.toLowerCase().trim();
+    // application/x-www-form-urlencoded では '+' がスペースにデコードされるため修正
+    // MyASPから送信される '+' 付きメールアドレス（例: user+alias@gmail.com）を正しく処理
+    const email = rawEmail.toLowerCase().trim().replace(/\s+(?=\S*@)/, '+');
     const supabase = createAdminClient();
 
     // 姓+名をスペースで結合
