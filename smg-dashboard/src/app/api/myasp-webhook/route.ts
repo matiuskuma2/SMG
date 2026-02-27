@@ -16,8 +16,24 @@ interface MyaspUserData {
 }
 
 /**
+ * ランダムなデフォルトパスワードを生成する
+ * パスワードが未送信の場合に使用（ユーザーは後からパスワードリセットで変更可能）
+ */
+function generateDefaultPassword(): string {
+  const chars =
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%';
+  let password = '';
+  for (let i = 0; i < 16; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+}
+
+/**
  * メールアドレスでユーザーを検索し、存在しなければ新規作成する
  * 既存ユーザーの場合はプロフィールデータを上書き更新する
+ *
+ * phone_number の UNIQUE 制約違反時は phone_number を null にしてリトライする
  */
 async function findOrCreateUser(
   supabase: SupabaseAdmin,
@@ -25,10 +41,10 @@ async function findOrCreateUser(
   password: string | null,
   userData: MyaspUserData,
 ): Promise<{ userId: string; created: boolean }> {
-  // mst_user でメール検索
+  // mst_user でメール検索（論理削除されたレコードも含めて検索）
   const { data: existingUser, error: lookupError } = await supabase
     .from('mst_user')
-    .select('user_id')
+    .select('user_id, deleted_at')
     .eq('email', email)
     .maybeSingle();
 
@@ -37,8 +53,8 @@ async function findOrCreateUser(
   }
 
   if (existingUser) {
-    // 既存ユーザー: null以外のフィールドのみ上書き更新
-    const updateData: Record<string, string> = {};
+    // 論理削除済みユーザーの場合は復活させる
+    const updateData: Record<string, string | null> = {};
     for (const [key, value] of Object.entries(userData)) {
       if (value !== null) {
         updateData[key] = value;
@@ -46,28 +62,67 @@ async function findOrCreateUser(
     }
     updateData.updated_at = new Date().toISOString();
 
+    // 論理削除されていた場合は deleted_at を null にして復活
+    if (existingUser.deleted_at !== null) {
+      updateData.deleted_at = null;
+    }
+
     const { error: updateError } = await supabase
       .from('mst_user')
       .update(updateData)
       .eq('user_id', existingUser.user_id);
 
     if (updateError) {
-      throw new Error(`ユーザー更新エラー: ${updateError.message}`);
+      // phone_number の UNIQUE 制約違反の場合、phone_number を除外してリトライ
+      if (updateError.message.includes('phone_number')) {
+        console.warn(
+          `phone_number重複のため除外して更新: email=${email}, phone=${userData.phone_number}`,
+        );
+        delete updateData.phone_number;
+        const { error: retryError } = await supabase
+          .from('mst_user')
+          .update(updateData)
+          .eq('user_id', existingUser.user_id);
+
+        if (retryError) {
+          throw new Error(`ユーザー更新エラー(リトライ): ${retryError.message}`);
+        }
+      } else {
+        throw new Error(`ユーザー更新エラー: ${updateError.message}`);
+      }
+    }
+
+    // 論理削除されていた場合、Auth側もbanを解除（banされている場合）
+    if (existingUser.deleted_at !== null) {
+      await supabase.auth.admin.updateUserById(existingUser.user_id, {
+        ban_duration: 'none',
+      });
+
+      // パスワードが送信されている場合は更新
+      if (password) {
+        await supabase.auth.admin.updateUserById(existingUser.user_id, {
+          password: password,
+        });
+      }
     }
 
     return { userId: existingUser.user_id, created: false };
   }
 
-  // パスワードのバリデーション
+  // 新規ユーザー作成
+  // パスワードが未送信の場合はデフォルトパスワードを生成
+  const actualPassword = password || generateDefaultPassword();
   if (!password) {
-    throw new Error('パスワードが必要です');
+    console.warn(
+      `パスワード未送信のためデフォルトパスワードを生成: email=${email}`,
+    );
   }
 
   // Supabase Auth ユーザー作成（MyASPのパスワードを使用）
   const { data: authData, error: authError } =
     await supabase.auth.admin.createUser({
       email: email,
-      password: password,
+      password: actualPassword,
       email_confirm: true,
     });
 
@@ -91,9 +146,36 @@ async function findOrCreateUser(
   ]);
 
   if (insertError) {
-    // ロールバック: mst_user insert失敗時はauth userを削除
-    await supabase.auth.admin.deleteUser(authData.user.id);
-    throw new Error(`ユーザーデータ登録エラー: ${insertError.message}`);
+    // phone_number の UNIQUE 制約違反の場合、phone_number を null にしてリトライ
+    if (insertError.message.includes('phone_number')) {
+      console.warn(
+        `phone_number重複のため null で挿入リトライ: email=${email}, phone=${userData.phone_number}`,
+      );
+      const { error: retryInsertError } = await supabase
+        .from('mst_user')
+        .insert([
+          {
+            user_id: authData.user.id,
+            email: email,
+            ...userData,
+            phone_number: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+        ]);
+
+      if (retryInsertError) {
+        // リトライも失敗した場合はロールバック
+        await supabase.auth.admin.deleteUser(authData.user.id);
+        throw new Error(
+          `ユーザーデータ登録エラー(リトライ): ${retryInsertError.message}`,
+        );
+      }
+    } else {
+      // ロールバック: mst_user insert失敗時はauth userを削除
+      await supabase.auth.admin.deleteUser(authData.user.id);
+      throw new Error(`ユーザーデータ登録エラー: ${insertError.message}`);
+    }
   }
 
   return { userId: authData.user.id, created: true };
