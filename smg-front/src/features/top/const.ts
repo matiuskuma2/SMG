@@ -3,6 +3,8 @@ export type RouteDefinition = {
 	href: string;
 	/** 指定した場合、そのグループ名に所属するユーザーにのみ表示される */
 	requiredGroup?: string;
+	/** リンク種別: external の場合は新しいタブで開く */
+	linkType?: string;
 };
 
 export const ROUTE_DEFINITION: RouteDefinition[] = [

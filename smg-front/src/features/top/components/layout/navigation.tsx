@@ -18,21 +18,39 @@ export const Navigation = () => {
 				overflowX: 'auto',
 			})}
 		>
-			{routes.map((d) => (
-				<Link
-					href={d.href}
-					key={d.label}
-					className={css({
-						px: 2,
-						pb: 1,
-						borderBottom: '2px solid gray',
-						_hover: { borderBottomColor: 'white' },
-						borderBottomColor: pathname === d.href ? 'white' : 'gray',
-					})}
-				>
-					{d.label}
-				</Link>
-			))}
+			{routes.map((d) =>
+				d.linkType === 'external' ? (
+					<a
+						href={d.href}
+						key={d.label}
+						target="_blank"
+						rel="noopener noreferrer"
+						className={css({
+							px: 2,
+							pb: 1,
+							borderBottom: '2px solid gray',
+							_hover: { borderBottomColor: 'white' },
+							borderBottomColor: 'gray',
+						})}
+					>
+						{d.label}
+					</a>
+				) : (
+					<Link
+						href={d.href}
+						key={d.label}
+						className={css({
+							px: 2,
+							pb: 1,
+							borderBottom: '2px solid gray',
+							_hover: { borderBottomColor: 'white' },
+							borderBottomColor: pathname === d.href ? 'white' : 'gray',
+						})}
+					>
+						{d.label}
+					</Link>
+				),
+			)}
 		</div>
 	);
 };

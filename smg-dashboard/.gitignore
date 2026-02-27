@@ -46,3 +46,4 @@ styled-system-studio
 
 ## Serena
 .serena
+.env*.local

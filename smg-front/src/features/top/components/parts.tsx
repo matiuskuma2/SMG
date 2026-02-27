@@ -59,9 +59,17 @@ export const Drawer = () => {
 						<div className={css({ overflowY: 'auto', scrollbar: 'hidden' })}>
 							{routes.map((d) => (
 								<DrawerItem key={d.href}>
-									<Dialog.CloseTrigger asChild>
-										<Link href={d.href}>{d.label}</Link>
-									</Dialog.CloseTrigger>
+									{d.linkType === 'external' ? (
+										<Dialog.CloseTrigger asChild>
+											<a href={d.href} target="_blank" rel="noopener noreferrer">
+												{d.label}
+											</a>
+										</Dialog.CloseTrigger>
+									) : (
+										<Dialog.CloseTrigger asChild>
+											<Link href={d.href}>{d.label}</Link>
+										</Dialog.CloseTrigger>
+									)}
 								</DrawerItem>
 							))}
 						</div>
