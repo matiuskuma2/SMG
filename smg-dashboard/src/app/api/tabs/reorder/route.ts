@@ -30,9 +30,9 @@ export async function PUT(request: NextRequest) {
     const results = await Promise.all(updatePromises);
 
     // エラーチェック
-    const errors = results.filter((r) => r.error);
+    const errors = results.filter((r: any) => r.error);
     if (errors.length > 0) {
-      console.error('並び替えエラー:', errors.map((e) => e.error));
+      console.error('並び替えエラー:', errors.map((e: any) => e.error));
       return NextResponse.json(
         { error: '一部のタブの並び替えに失敗しました' },
         { status: 500 },

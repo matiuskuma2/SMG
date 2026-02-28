@@ -27,7 +27,7 @@ export async function GET() {
     }
 
     // visible_group のフィルタリング（deleted_at が null のもののみ）
-    const formattedTabs = (tabs || []).map((tab) => ({
+    const formattedTabs = (tabs || []).map((tab: any) => ({
       ...tab,
       visible_groups: (tab.trn_tab_visible_group || [])
         .filter((vg: any) => vg.mst_group)
