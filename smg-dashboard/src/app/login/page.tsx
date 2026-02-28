@@ -55,7 +55,25 @@ export default function Login() {
     try {
       const supabase = createClient();
 
-      // まずメールアドレスからユーザー情報とグループを確認
+      // まずログインを実行（RLSにより未認証状態ではmst_userを読めないため）
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // ログイン成功後、ユーザーのグループを確認
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        throw new Error('ユーザー情報の取得に失敗しました');
+      }
+
       const { data: userData, error: userError } = await supabase
         .from('mst_user')
         .select(`
@@ -66,25 +84,22 @@ export default function Login() {
             )
           )
         `)
-        .eq('email', email)
+        .eq('user_id', user.id)
         .is('trn_group_user.deleted_at', null);
 
-      if (userError) {
-        console.error('ユーザー情報取得エラー:', userError);
+      if (userError || !userData || userData.length === 0) {
+        // グループ情報が取得できない場合はサインアウトしてエラー
+        await supabase.auth.signOut();
         throw new Error('メールアドレスまたはパスワードが正しくありません');
       }
 
-      if (!userData || userData.length === 0) {
-        throw new Error('メールアドレスまたはパスワードが正しくありません');
-      }
-
-      // ユーザーのグループをチェック（ログイン前）
+      // ユーザーのグループをチェック
       const userGroups = userData[0].trn_group_user;
       let isBlocked = false;
       let blockReason = null;
       let isAuthorized = false;
 
-      // 除外グループのチェック
+      // 除外グループ・許可グループのチェック
       for (const groupUser of userGroups) {
         // @ts-ignore
         const groupTitle = groupUser.mst_group?.title;
@@ -99,14 +114,14 @@ export default function Login() {
           blockReason = 'withdrawn';
           break;
         }
-        if (groupTitle === 'ユーザー') {
-          isBlocked = true;
-          blockReason = 'user';
+        if (groupTitle === '講師' || groupTitle === '運営') {
+          isAuthorized = true;
         }
       }
 
-      // ブロック対象の場合、ログインを実行せずにエラーを表示
-      if (isBlocked) {
+      // ブロック対象または権限不足の場合、サインアウトしてエラーを表示
+      if (isBlocked || !isAuthorized) {
+        await supabase.auth.signOut();
         if (blockReason === 'unpaid') {
           throw new Error(
             '決済エラーのためログインを制限させていただいております',
@@ -117,34 +132,7 @@ export default function Login() {
             '退会済みのユーザーのためログインを制限させていただいております',
           );
         }
-        if (blockReason === 'user') {
-          throw new Error('ユーザーアカウントではログインできません');
-        }
-      }
-
-      // 許可グループのチェック
-      for (const groupUser of userGroups) {
-        // @ts-ignore
-        const groupTitle = groupUser.mst_group?.title;
-
-        if (groupTitle === '講師' || groupTitle === '運営') {
-          isAuthorized = true;
-          break;
-        }
-      }
-
-      if (!isAuthorized) {
         throw new Error('講師または運営スタッフのみログインが許可されています');
-      }
-
-      // 権限チェックが通った場合のみログインを実行
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        throw error;
       }
 
       router.refresh();
