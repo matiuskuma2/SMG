@@ -10,8 +10,8 @@ export async function GET(
     const supabase = createAdminClient();
     const tabId = params.id;
 
-    const { data: tab, error } = await supabase
-      .from('mst_tab')
+    const { data: tab, error } = await (supabase
+      .from('mst_tab') as any)
       .select(`
         *,
         trn_tab_visible_group!left(
@@ -81,8 +81,8 @@ export async function PUT(
     }
 
     // タブ更新
-    const { data: updatedTab, error: updateError } = await supabase
-      .from('mst_tab')
+    const { data: updatedTab, error: updateError } = await (supabase
+      .from('mst_tab') as any)
       .update({
         display_name,
         link_type,
@@ -103,8 +103,8 @@ export async function PUT(
 
     // 表示グループの更新
     // 既存のグループ関連を論理削除
-    await supabase
-      .from('trn_tab_visible_group')
+    await (supabase
+      .from('trn_tab_visible_group') as any)
       .update({ deleted_at: new Date().toISOString() })
       .eq('tab_id', tabId)
       .is('deleted_at', null);
@@ -116,8 +116,8 @@ export async function PUT(
         group_id,
       }));
 
-      const { error: groupError } = await supabase
-        .from('trn_tab_visible_group')
+      const { error: groupError } = await (supabase
+        .from('trn_tab_visible_group') as any)
         .insert(groupInserts);
 
       if (groupError) {
@@ -145,8 +145,8 @@ export async function DELETE(
     const tabId = params.id;
 
     // タブを論理削除
-    const { error: deleteError } = await supabase
-      .from('mst_tab')
+    const { error: deleteError } = await (supabase
+      .from('mst_tab') as any)
       .update({ deleted_at: new Date().toISOString() })
       .eq('tab_id', tabId)
       .is('deleted_at', null);
@@ -157,8 +157,8 @@ export async function DELETE(
     }
 
     // 関連する visible_group も論理削除
-    await supabase
-      .from('trn_tab_visible_group')
+    await (supabase
+      .from('trn_tab_visible_group') as any)
       .update({ deleted_at: new Date().toISOString() })
       .eq('tab_id', tabId)
       .is('deleted_at', null);

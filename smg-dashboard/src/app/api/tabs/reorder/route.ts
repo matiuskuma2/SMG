@@ -20,8 +20,8 @@ export async function PUT(request: NextRequest) {
     // 各タブの display_order を更新
     const updatePromises = tab_orders.map(
       (item: { tab_id: string; display_order: number }) =>
-        supabase
-          .from('mst_tab')
+        (supabase
+          .from('mst_tab') as any)
           .update({ display_order: item.display_order })
           .eq('tab_id', item.tab_id)
           .is('deleted_at', null),

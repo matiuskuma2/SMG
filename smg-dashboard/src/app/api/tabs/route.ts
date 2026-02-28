@@ -8,8 +8,8 @@ export async function GET() {
   try {
     const supabase = createAdminClient();
 
-    const { data: tabs, error } = await supabase
-      .from('mst_tab')
+    const { data: tabs, error } = await (supabase
+      .from('mst_tab') as any)
       .select(`
         *,
         trn_tab_visible_group!left(
@@ -80,8 +80,8 @@ export async function POST(request: NextRequest) {
     }
 
     // タブ数上限チェック
-    const { count, error: countError } = await supabase
-      .from('mst_tab')
+    const { count, error: countError } = await (supabase
+      .from('mst_tab') as any)
       .select('*', { count: 'exact', head: true })
       .is('deleted_at', null);
 
@@ -97,8 +97,8 @@ export async function POST(request: NextRequest) {
     }
 
     // タブ作成
-    const { data: newTab, error: insertError } = await supabase
-      .from('mst_tab')
+    const { data: newTab, error: insertError } = await (supabase
+      .from('mst_tab') as any)
       .insert({
         display_name,
         link_type,
@@ -122,8 +122,8 @@ export async function POST(request: NextRequest) {
         group_id,
       }));
 
-      const { error: groupError } = await supabase
-        .from('trn_tab_visible_group')
+      const { error: groupError } = await (supabase
+        .from('trn_tab_visible_group') as any)
         .insert(groupInserts);
 
       if (groupError) {
