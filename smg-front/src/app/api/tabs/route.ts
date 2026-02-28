@@ -26,7 +26,7 @@ export async function GET() {
 		}
 
 		// 公開中のタブを取得
-		const { data: tabs, error: tabError } = await supabase
+		const { data: tabs, error: tabError } = await (supabase as any)
 			.from('mst_tab')
 			.select(`
 				tab_id,
@@ -74,7 +74,7 @@ export async function GET() {
 		if (hasFullAccess) {
 			// 全タブを返す
 			return NextResponse.json({
-				tabs: (tabs || []).map((tab) => ({
+				tabs: (tabs || []).map((tab: any) => ({
 					tab_id: tab.tab_id,
 					label: tab.display_name,
 					href: tab.link_value,
@@ -93,7 +93,7 @@ export async function GET() {
 			}
 
 			// タブの表示グループを取得
-			const { data: visibleGroups } = await supabase
+			const { data: visibleGroups } = await (supabase as any)
 				.from('trn_tab_visible_group')
 				.select('group_id')
 				.eq('tab_id', tab.tab_id)
@@ -114,7 +114,7 @@ export async function GET() {
 		}
 
 		return NextResponse.json({
-			tabs: filteredTabs.map((tab) => ({
+			tabs: filteredTabs.map((tab: any) => ({
 				tab_id: tab.tab_id,
 				label: tab.display_name,
 				href: tab.link_value,
