@@ -32,6 +32,7 @@ export async function middleware(request: NextRequest) {
           try {
             for (const { name, value, options } of cookiesToSet) {
               request.cookies.set({ name, value, ...options });
+              response.cookies.set({ name, value, ...options });
             }
           } catch {
             // The `setAll` method was called from a Server Component.
