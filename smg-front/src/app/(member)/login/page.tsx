@@ -50,63 +50,8 @@ export default function Login() {
 
 		try {
 			const supabase = createClient();
-			
-			// まずメールアドレスからユーザー情報とグループを確認
-			const { data: userData, error: userError } = await supabase
-				.from('mst_user')
-				.select(`
-					user_id,
-					trn_group_user (
-						mst_group:group_id (
-							title
-						)
-					)
-				`)
-				.eq('email', email)
-				.is('trn_group_user.deleted_at', null);
 
-			if (userError) {
-				console.error('ユーザー情報取得エラー:', userError);
-				throw new Error('メールアドレスまたはパスワードが正しくありません');
-			}
-
-			if (!userData || userData.length === 0) {
-				throw new Error('メールアドレスまたはパスワードが正しくありません');
-			}
-
-			// ユーザーのグループをチェック（ログイン前）
-			const userGroups = userData[0].trn_group_user || [];
-			let isBlocked = false;
-			let blockReason = null;
-
-			// 除外グループのチェック（グループがある場合のみ）
-			for (const groupUser of userGroups) {
-				// @ts-ignore
-				const groupTitle = groupUser.mst_group?.title;
-				
-				if (groupTitle === '未決済') {
-					isBlocked = true;
-					blockReason = 'unpaid';
-					break;
-				} else if (groupTitle === '退会') {
-					isBlocked = true;
-					blockReason = 'withdrawn';
-					break;
-				}
-			}
-
-			// ブロック対象の場合、ログインを実行せずにエラーを表示
-			if (isBlocked) {
-				if (blockReason === 'unpaid') {
-					throw new Error('決済エラーのためログインを制限させていただいております');
-				} else if (blockReason === 'withdrawn') {
-					throw new Error('退会済みのユーザーのためログインを制限させていただいております');
-				}
-			}
-
-
-
-			// 権限チェックが通った場合のみログインを実行
+			// まずログインを実行（RLSにより未認証状態ではmst_userを読めないため）
 			const { error } = await supabase.auth.signInWithPassword({
 				email,
 				password,
@@ -116,7 +61,7 @@ export default function Login() {
 				throw error;
 			}
 
-			// ログイン成功時にlast_login_atを更新
+			// ログイン成功後、ユーザー情報とグループを確認
 			const {
 				data: { user },
 				error: getUserError,
@@ -127,6 +72,53 @@ export default function Login() {
 			}
 
 			if (user) {
+				// グループ情報を取得してブロック対象かチェック
+				const { data: userData, error: userError } = await supabase
+					.from('mst_user')
+					.select(`
+						user_id,
+						trn_group_user (
+							mst_group:group_id (
+								title
+							)
+						)
+					`)
+					.eq('user_id', user.id)
+					.is('trn_group_user.deleted_at', null);
+
+				if (!userError && userData && userData.length > 0) {
+					const userGroups = userData[0].trn_group_user || [];
+					let isBlocked = false;
+					let blockReason = null;
+
+					// 除外グループのチェック
+					for (const groupUser of userGroups) {
+						// @ts-ignore
+						const groupTitle = groupUser.mst_group?.title;
+						
+						if (groupTitle === '未決済') {
+							isBlocked = true;
+							blockReason = 'unpaid';
+							break;
+						} else if (groupTitle === '退会') {
+							isBlocked = true;
+							blockReason = 'withdrawn';
+							break;
+						}
+					}
+
+					// ブロック対象の場合、サインアウトしてエラーを表示
+					if (isBlocked) {
+						await supabase.auth.signOut();
+						if (blockReason === 'unpaid') {
+							throw new Error('決済エラーのためログインを制限させていただいております');
+						} else if (blockReason === 'withdrawn') {
+							throw new Error('退会済みのユーザーのためログインを制限させていただいております');
+						}
+					}
+				}
+
+				// last_login_atを更新
 				const { data: updateData, error: updateError } = await supabase
 					.from('mst_user')
 					.update({ last_login_at: new Date().toISOString() })
