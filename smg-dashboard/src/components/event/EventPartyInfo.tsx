@@ -8,6 +8,7 @@ type EventPartyInfoProps = {
     partyLocation?: string;
     partyFee?: number;
     partyCapacity?: number;
+    partyRegistrationEndDateTime?: string;
   };
   onPartyInfoChange?: (hasInfo: boolean) => void;
 };
@@ -54,6 +55,36 @@ export const EventPartyInfo = ({
       >
         懇親会設定
       </h2>
+
+      {/* 懇親会申込締切日 */}
+      <div className={css({ mb: '4' })}>
+        <label
+          htmlFor="partyRegistrationEndDateTime"
+          className={css({ display: 'block', mb: '2', fontWeight: 'medium' })}
+        >
+          懇親会申込締切日時
+          <span className={css({ fontSize: 'xs', color: 'gray.500', ml: '2' })}>
+            ※未設定の場合はイベント全体の申込締切日が適用されます
+          </span>
+        </label>
+        <input
+          id="partyRegistrationEndDateTime"
+          type="datetime-local"
+          name="partyRegistrationEndDateTime"
+          autoComplete="one-time-code"
+          className={css({
+            border: '1px solid',
+            borderColor: 'gray.300',
+            p: '2',
+            borderRadius: 'md',
+            width: { base: '100%', md: '50%' },
+            outline: 'none',
+            _focus: { borderColor: 'blue.500' },
+          })}
+          defaultValue={initialData.partyRegistrationEndDateTime}
+          onChange={handleInputChange}
+        />
+      </div>
 
       <div
         className={css({

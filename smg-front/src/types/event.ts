@@ -44,6 +44,7 @@ export interface EventDetailsProps {
 	onGenerateCalendarUrl: () => string;
 	registration_start_datetime?: string;
 	registration_end_datetime?: string;
+	gather_registration_end_datetime?: string | null;
 }
 
 // EventParticipationInfoProps
@@ -74,6 +75,8 @@ export interface EventApplicationFormProps {
 	event_location?: string;
 	event_city?: string;
 	onSuccess?: () => void;
+	gather_registration_end_datetime?: string | null;
+	registration_end_datetime?: string;
 }
 
 // EventApplicationButtonProps

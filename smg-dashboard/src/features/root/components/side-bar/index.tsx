@@ -20,6 +20,7 @@ import {
   FaBuilding,
   FaGraduationCap,
   FaTableColumns,
+  FaImage,
 } from 'react-icons/fa6';
 import { LuEllipsisVertical, LuMenu } from 'react-icons/lu';
 import { MdEdit, MdFiberNew, MdSettings } from 'react-icons/md';
@@ -451,6 +452,21 @@ export const SideBar = () => {
             >
               <Icon icon={<FaTableColumns size={20} />} />
               <NavItem>タブ管理</NavItem>
+            </button>
+          </li>
+
+          <li>
+            <button
+              type="button"
+              className={
+                isCurrentPage('/bannerlist') || isCurrentPage('/banner/')
+                  ? activeNavItemStyle
+                  : navItemStyle
+              }
+              onClick={() => router.push('/bannerlist')}
+            >
+              <Icon icon={<FaImage size={20} />} />
+              <NavItem>バナー管理</NavItem>
             </button>
           </li>
 

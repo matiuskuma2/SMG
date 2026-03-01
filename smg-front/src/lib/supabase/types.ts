@@ -368,6 +368,7 @@ export type Database = {
 					gather_end_time: string | null;
 					gather_location: string | null;
 					gather_price: number | null;
+					gather_registration_end_datetime: string | null;
 					gather_start_time: string | null;
 					has_consultation: boolean | null;
 					has_gather: boolean | null;
@@ -398,6 +399,7 @@ export type Database = {
 					gather_end_time?: string | null;
 					gather_location?: string | null;
 					gather_price?: number | null;
+					gather_registration_end_datetime?: string | null;
 					gather_start_time?: string | null;
 					has_consultation?: boolean | null;
 					has_gather?: boolean | null;
@@ -428,6 +430,7 @@ export type Database = {
 					gather_end_time?: string | null;
 					gather_location?: string | null;
 					gather_price?: number | null;
+					gather_registration_end_datetime?: string | null;
 					gather_start_time?: string | null;
 					has_consultation?: boolean | null;
 					has_gather?: boolean | null;

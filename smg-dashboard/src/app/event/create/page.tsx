@@ -119,6 +119,9 @@ export default function EventCreatePage() {
         gather_location: event.gather_location,
         gather_price: event.gather_price,
         gather_capacity: event.gather_capacity,
+        gather_registration_end_datetime: event.gather_registration_end_datetime
+          ? formatForDatetimeLocal(utcToJst(event.gather_registration_end_datetime))
+          : undefined,
         has_gather: event.has_gather,
         // 個別相談会設定
         consultation_capacity: event.consultation_capacity,
@@ -261,6 +264,9 @@ export default function EventCreatePage() {
         gather_location: data.gather_location || null,
         gather_price: data.gather_price || null,
         gather_capacity: data.gather_capacity || null,
+        gather_registration_end_datetime: data.gather_registration_end_datetime
+          ? jstToUtc(data.gather_registration_end_datetime)
+          : null,
         has_consultation: !!data.consultation_capacity,
         consultation_capacity: data.consultation_capacity || null,
         publish_start_at: data.publish_start_at

@@ -34,7 +34,8 @@ const EventDetails: React.FC<EventDetailsProps> = ({
   sections,
   onGenerateCalendarUrl,
   registration_start_datetime,
-  registration_end_datetime
+  registration_end_datetime,
+  gather_registration_end_datetime
 }) => {
 
   // 申し込み期間のフォーマット
@@ -51,6 +52,13 @@ const EventDetails: React.FC<EventDetailsProps> = ({
     };
 
     return `${formatDate(startDate)} 〜 ${formatDate(endDate)}`;
+  };
+
+  // 懇親会申込締切日のフォーマット
+  const formatGatherDeadline = () => {
+    if (!gather_registration_end_datetime) return null;
+    const endDate = new Date(gather_registration_end_datetime);
+    return `${endDate.getFullYear()}年${endDate.getMonth() + 1}月${endDate.getDate()}日 ${endDate.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`;
   };
 
   return (

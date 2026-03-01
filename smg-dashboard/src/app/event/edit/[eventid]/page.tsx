@@ -144,6 +144,9 @@ export default function EventEditPage() {
             gather_location: data.gather_location || null,
             gather_price: data.gather_price || null,
             gather_capacity: data.gather_capacity || null,
+            gather_registration_end_datetime: data.gather_registration_end_datetime
+              ? utcToJst(data.gather_registration_end_datetime)
+              : null,
             consultation_capacity: data.consultation_capacity || null,
             has_gather:
               !!data.gather_start_time &&
@@ -217,6 +220,9 @@ export default function EventEditPage() {
           gather_location: data.gather_location || null,
           gather_price: data.gather_price || null,
           gather_capacity: data.gather_capacity || null,
+          gather_registration_end_datetime: data.gather_registration_end_datetime
+            ? jstToUtc(data.gather_registration_end_datetime)
+            : null,
           has_consultation: !!data.consultation_capacity,
           consultation_capacity: data.consultation_capacity || null,
           publish_start_at: data.publish_start_at

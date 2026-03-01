@@ -301,6 +301,7 @@ export const EventForm = ({
       gather_location: null,
       gather_price: null,
       gather_capacity: null,
+      gather_registration_end_datetime: null,
       has_consultation: false,
       consultation_capacity: null,
       publish_start_at: null,
@@ -350,6 +351,11 @@ export const EventForm = ({
     const partyCapacity = getOptionalNumber('partyCapacity');
     if (partyCapacity !== undefined) {
       data.gather_capacity = partyCapacity;
+    }
+
+    const partyRegistrationEndDateTime = getOptionalString('partyRegistrationEndDateTime');
+    if (partyRegistrationEndDateTime) {
+      data.gather_registration_end_datetime = partyRegistrationEndDateTime;
     }
 
     const consultationCapacity = getOptionalNumber('consultationCapacity');
@@ -486,6 +492,7 @@ export const EventForm = ({
               partyLocation: initialData.gather_location || undefined,
               partyFee: initialData.gather_price || undefined,
               partyCapacity: initialData.gather_capacity || undefined,
+              partyRegistrationEndDateTime: initialData.gather_registration_end_datetime || undefined,
             }}
             onPartyInfoChange={(hasInfo) => setHasPartyInfo(hasInfo)}
           />

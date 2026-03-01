@@ -167,14 +167,20 @@ const EventDetail = () => {
 		const now = new Date();
 		const startDate = new Date(event.registration_start_datetime);
 		const endDate = new Date(event.registration_end_datetime);
+		// 懇親会専用の締切日（設定されていない場合はイベント全体の締切日を使用）
+		const gatherEndDate = event.gather_registration_end_datetime
+			? new Date(event.gather_registration_end_datetime)
+			: endDate;
+		// いずれかの締切が有効であれば最も遅い方を使用
+		const effectiveEndDate = gatherEndDate > endDate ? gatherEndDate : endDate;
 
 		// 期間開始前の場合
 		if (now < startDate) {
 			return '申し込み前';
 		}
 
-		// 期間終了後の場合
-		if (now > endDate) {
+		// 全ての期間終了後の場合
+		if (now > effectiveEndDate) {
 			return '申し込み期間終了';
 		}
 
@@ -218,15 +224,21 @@ const EventDetail = () => {
 
 		// 懇親会のセクション（あれば）
 		if (event.has_gather) {
+			const gatherContent = [
+				`時間: ${new Date(event.gather_start_time).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}-${new Date(event.gather_end_time).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`,
+				`会場: ${event.gather_location}`,
+				`会費: ${event.gather_price}円`,
+				`定員: ${event.gather_capacity}名`,
+			];
+			// 懇親会専用の締切日が設定されている場合表示
+			if (event.gather_registration_end_datetime) {
+				const gatherDeadline = new Date(event.gather_registration_end_datetime);
+				gatherContent.push(`懇親会申込締切: ${gatherDeadline.getFullYear()}年${gatherDeadline.getMonth() + 1}月${gatherDeadline.getDate()}日 ${gatherDeadline.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`);
+			}
+			gatherContent.push('※申し込みフォームにチェックを入れてください。');
 			sections.push({
 				title: '■懇親会',
-				content: [
-					`時間: ${new Date(event.gather_start_time).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}-${new Date(event.gather_end_time).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`,
-					`会場: ${event.gather_location}`,
-					`会費: ${event.gather_price}円`,
-					`定員: ${event.gather_capacity}名`,
-					'※申し込みフォームにチェックを入れてください。',
-				],
+				content: gatherContent,
 			});
 		}
 
@@ -310,6 +322,7 @@ const EventDetail = () => {
 					onGenerateCalendarUrl={() => generateGoogleCalendarUrl(event)}
 					registration_start_datetime={event.registration_start_datetime}
 					registration_end_datetime={event.registration_end_datetime}
+					gather_registration_end_datetime={event.gather_registration_end_datetime}
 				/>
 
 				{/* イベント資料 */}
@@ -355,9 +368,11 @@ const EventDetail = () => {
 					})}
 				></div>
 				{/* 申し込みフォーム */}
+				{/* 懇親会専用の締切日が設定されている場合、そちらも考慮してフォームを表示 */}
 				{(isAttending ||
 					(new Date() >= new Date(event.registration_start_datetime) &&
-						new Date() <= new Date(event.registration_end_datetime))) && (
+						(new Date() <= new Date(event.registration_end_datetime) ||
+						(event.gather_registration_end_datetime && new Date() <= new Date(event.gather_registration_end_datetime))))) && (
 					<div id="application-form">
 						{isAttending ? (
 							<ApplicationStatus
@@ -376,6 +391,8 @@ const EventDetail = () => {
 								event_type={event.event_type.event_type_name}
 								event_location={event.event_location}
 								event_city={event.event_city}
+								gather_registration_end_datetime={event.gather_registration_end_datetime}
+								registration_end_datetime={event.registration_end_datetime}
 							/>
 						)}
 					</div>

@@ -32,7 +32,9 @@ const EventApplicationForm: React.FC<EventApplicationFormProps> = ({
   event_type = '',
   event_location = '',
   event_city = '',
-  onSuccess
+  onSuccess,
+  gather_registration_end_datetime,
+  registration_end_datetime
 }) => {
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [participationType, setParticipationType] = useState<string>('Offline');
@@ -791,7 +793,16 @@ const EventApplicationForm: React.FC<EventApplicationFormProps> = ({
                 event_type="Networking"
                 checked={selectedTypes.includes("Networking")}
                 onChange={() => handleTypeChange("Networking")}
-                disabled={!has_gather || (gatherCapacity > 0 && gatherParticipants >= gatherCapacity)}
+                disabled={
+                  !has_gather ||
+                  (gatherCapacity > 0 && gatherParticipants >= gatherCapacity) ||
+                  // 懇親会専用の締切日が設定されている場合はそちらで判定
+                  (gather_registration_end_datetime
+                    ? new Date() > new Date(gather_registration_end_datetime)
+                    : registration_end_datetime
+                      ? new Date() > new Date(registration_end_datetime)
+                      : false)
+                }
                 participantCount={gatherParticipants}
                 capacity={gatherCapacity}
                 isRegularMeeting={isRegularMeeting}

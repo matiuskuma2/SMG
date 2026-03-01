@@ -136,6 +136,7 @@ export async function POST(request: Request) {
         gather_location,
         gather_price,
         gather_capacity,
+        gather_registration_end_datetime,
         has_gather,
         consultation_capacity,
         has_consultation

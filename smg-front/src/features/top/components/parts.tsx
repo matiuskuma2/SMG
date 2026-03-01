@@ -11,7 +11,7 @@ import { Portal } from '@ark-ui/react/portal';
 import { Sawarabi_Mincho } from 'next/font/google';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { LuAlignJustify, LuX } from 'react-icons/lu';
 import { ROUTE_DEFINITION } from '../const';
 
@@ -87,12 +87,38 @@ const DrawerItem = styled('div', {
 });
 
 export const Information = () => {
-	const banners = [
-		{ src: '/top/banners/2_0.png', href: '/events' },
+	// フォールバックバナー（DBが未設定の場合に使用）
+	const fallbackBanners = [
+		{ src: '/top/banners/2_0.png', href: '/notice/23db5fa0-6554-4e37-a176-07ec34e41b64' },
 		{ src: '/top/banners/3_0.png', href: '/beginner' },
 		{ src: '/top/banners/4_0.png', href: '/events' },
 		{ src: '/top/banners/5_0.png', href: '/archive' },
 	];
+
+	const [banners, setBanners] = useState(fallbackBanners);
+
+	useEffect(() => {
+		const fetchBanners = async () => {
+			try {
+				const res = await fetch('/api/banners');
+				if (res.ok) {
+					const data = await res.json();
+					if (data.banners && data.banners.length > 0) {
+						setBanners(
+							data.banners.map((b: { image_url: string; href: string }) => ({
+								src: b.image_url,
+								href: b.href,
+							})),
+						);
+					}
+				}
+			} catch (error) {
+				// フォールバックを使用
+				console.error('バナー取得エラー:', error);
+			}
+		};
+		fetchBanners();
+	}, []);
 
 	return (
 		<CarouselRoot
@@ -122,13 +148,23 @@ export const Information = () => {
 						index={index}
 					>
 						<Link href={banner.href}>
-							<Image
-								width={'750'}
-								height={'212'}
-								loading="eager"
-								src={banner.src}
-								alt="top-banner"
-							/>
+							{banner.src.startsWith('http') ? (
+								<img
+									width={750}
+									height={212}
+									src={banner.src}
+									alt="top-banner"
+									style={{ width: '100%', height: 'auto', objectFit: 'cover' }}
+								/>
+							) : (
+								<Image
+									width={'750'}
+									height={'212'}
+									loading="eager"
+									src={banner.src}
+									alt="top-banner"
+								/>
+							)}
 						</Link>
 					</Carousel.Item>
 				))}
