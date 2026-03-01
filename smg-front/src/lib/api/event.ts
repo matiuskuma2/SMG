@@ -537,6 +537,7 @@ export async function getEvents(
 			deleted_at: event.deleted_at,
 			is_draft: event.is_draft,
 			notification_sent: event.notification_sent ?? false,
+			gather_registration_end_datetime: event.gather_registration_end_datetime || null,
 			is_applied: userAppliedEvents.has(event.event_id),
 			participants_count: attendeeCounts[event.event_id] || 0,
 			visible_group_ids: [],
