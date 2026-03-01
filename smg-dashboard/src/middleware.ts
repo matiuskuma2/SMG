@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
@@ -20,6 +21,7 @@ export async function middleware(request: NextRequest) {
   // パス情報をヘッダーに追加
   response.headers.set('x-pathname', request.nextUrl.pathname);
 
+  // 認証セッション管理用（anon key + cookies）
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
@@ -77,7 +79,13 @@ export async function middleware(request: NextRequest) {
 
   // 認証済みユーザーが講師または運営グループに所属しているか確認
   if (user && !isPublicPath) {
-    const { data: authorizedUser, error } = (await supabase
+    // RLSをバイパスするためservice_roleキーでDBクエリ用クライアントを作成
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+      process.env.SUPABASE_SERVICE_ROLE_KEY ?? '',
+    );
+
+    const { data: authorizedUser, error } = (await supabaseAdmin
       .from('trn_group_user')
       .select(`
         user_id,

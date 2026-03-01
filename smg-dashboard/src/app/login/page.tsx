@@ -74,65 +74,23 @@ export default function Login() {
         throw new Error('ユーザー情報の取得に失敗しました');
       }
 
-      const { data: userData, error: userError } = await supabase
-        .from('mst_user')
-        .select(`
-          user_id,
-          trn_group_user!inner (
-            mst_group:group_id (
-              title
-            )
-          )
-        `)
-        .eq('user_id', user.id)
-        .is('trn_group_user.deleted_at', null);
+      // サーバーサイドAPIでグループチェック（service_roleキーでRLSをバイパス）
+      const checkResponse = await fetch('/api/auth/check-group', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
 
-      if (userError || !userData || userData.length === 0) {
-        // グループ情報が取得できない場合はサインアウトしてエラー
+      const checkResult = await checkResponse.json();
+
+      if (!checkResponse.ok) {
         await supabase.auth.signOut();
-        throw new Error('メールアドレスまたはパスワードが正しくありません');
+        throw new Error(checkResult.error || 'グループ情報の取得に失敗しました');
       }
 
-      // ユーザーのグループをチェック
-      const userGroups = userData[0].trn_group_user;
-      let isBlocked = false;
-      let blockReason = null;
-      let isAuthorized = false;
-
-      // 除外グループ・許可グループのチェック
-      for (const groupUser of userGroups) {
-        // @ts-ignore
-        const groupTitle = groupUser.mst_group?.title;
-
-        if (groupTitle === '未決済') {
-          isBlocked = true;
-          blockReason = 'unpaid';
-          break;
-        }
-        if (groupTitle === '退会') {
-          isBlocked = true;
-          blockReason = 'withdrawn';
-          break;
-        }
-        if (groupTitle === '講師' || groupTitle === '運営') {
-          isAuthorized = true;
-        }
-      }
-
-      // ブロック対象または権限不足の場合、サインアウトしてエラーを表示
-      if (isBlocked || !isAuthorized) {
+      if (!checkResult.authorized) {
         await supabase.auth.signOut();
-        if (blockReason === 'unpaid') {
-          throw new Error(
-            '決済エラーのためログインを制限させていただいております',
-          );
-        }
-        if (blockReason === 'withdrawn') {
-          throw new Error(
-            '退会済みのユーザーのためログインを制限させていただいております',
-          );
-        }
-        throw new Error('講師または運営スタッフのみログインが許可されています');
+        throw new Error(checkResult.message);
       }
 
       router.refresh();

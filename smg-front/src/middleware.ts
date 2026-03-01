@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 import { type NextRequest, NextResponse } from 'next/server';
 
 export async function middleware(request: NextRequest) {
@@ -46,7 +47,13 @@ export async function updateSession(request: NextRequest) {
 
 	// ユーザーがログインしている場合、所属グループのステータスをチェック
 	if (user) {
-		const { data: userGroups, error } = await supabase
+		// RLSをバイパスするためservice_roleキーでDBクエリ用クライアントを作成
+		const supabaseAdmin = createClient(
+			process.env.NEXT_PUBLIC_SUPABASE_URL!,
+			process.env.SUPABASE_SERVICE_ROLE_KEY!,
+		);
+
+		const { data: userGroups, error } = await supabaseAdmin
 			.from('trn_group_user')
 			.select(`
 				mst_group!inner(title)
