@@ -89,6 +89,7 @@ export default function ParticipantsPage({
             notification_sent: event.notification_sent || false,
             spreadsheet_id: event.spreadsheet_id || '',
             is_draft: event.is_draft || null,
+            gather_registration_end_datetime: event.gather_registration_end_datetime || null,
           });
         }
       } catch (e) {
