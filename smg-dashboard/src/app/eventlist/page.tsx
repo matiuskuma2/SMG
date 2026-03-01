@@ -253,6 +253,7 @@ function EventListContent() {
           has_archive: archiveEventIds.has(event.event_id),
           archive_is_draft: archiveStatusMap.get(event.event_id) || null,
           is_draft: event.is_draft,
+          gather_registration_end_datetime: event.gather_registration_end_datetime || null,
         }));
 
         setEvents(formattedEvents);
