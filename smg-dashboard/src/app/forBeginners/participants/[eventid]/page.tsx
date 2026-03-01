@@ -43,6 +43,7 @@ const eventData: EventData = {
   notification_sent: false,
   spreadsheet_id: null,
   is_draft: null,
+  gather_registration_end_datetime: null,
 };
 
 // イベント参加者データ
