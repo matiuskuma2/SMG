@@ -1095,7 +1095,12 @@ export type Database = {
 					last_login_at: string | null;
 					last_payment_date: string | null;
 					nickname: string | null;
+					my_asp_user_id: string | null;
 					phone_number: string | null;
+					postal_code: string | null;
+					prefecture: string | null;
+					city_address: string | null;
+					building_name: string | null;
 					social_media_links: Json | null;
 					updated_at: string | null;
 					user_id: string;
@@ -1137,7 +1142,12 @@ export type Database = {
 					last_login_at?: string | null;
 					last_payment_date?: string | null;
 					nickname?: string | null;
+					my_asp_user_id?: string | null;
 					phone_number?: string | null;
+					postal_code?: string | null;
+					prefecture?: string | null;
+					city_address?: string | null;
+					building_name?: string | null;
 					social_media_links?: Json | null;
 					updated_at?: string | null;
 					user_id: string;
@@ -1179,7 +1189,12 @@ export type Database = {
 					last_login_at?: string | null;
 					last_payment_date?: string | null;
 					nickname?: string | null;
+					my_asp_user_id?: string | null;
 					phone_number?: string | null;
+					postal_code?: string | null;
+					prefecture?: string | null;
+					city_address?: string | null;
+					building_name?: string | null;
 					social_media_links?: Json | null;
 					updated_at?: string | null;
 					user_id?: string;
