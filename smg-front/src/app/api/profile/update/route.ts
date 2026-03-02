@@ -12,6 +12,10 @@ interface ProfileUpdateRequest {
 	companyName: string;
 	companyNameKana: string;
 	companyAddress?: string;
+	postalCode?: string;
+	prefecture?: string;
+	cityAddress?: string;
+	buildingName?: string;
 	industryId?: string;
 	customIndustry?: string;
 	introduction?: string;
@@ -147,6 +151,10 @@ export async function PUT(request: NextRequest) {
 			{ key: 'user_position', value: body.userPosition },
 			{ key: 'birth_date', value: body.birthday },
 			{ key: 'company_address', value: body.companyAddress },
+			{ key: 'postal_code', value: body.postalCode },
+			{ key: 'prefecture', value: body.prefecture },
+			{ key: 'city_address', value: body.cityAddress },
+			{ key: 'building_name', value: body.buildingName },
 			{ key: 'bio', value: body.introduction },
 			{ key: 'website_url', value: body.website },
 		];

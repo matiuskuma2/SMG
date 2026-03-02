@@ -1,0 +1,124 @@
+============================================================
+SMG 既存会員一括登録スクリプト
+============================================================
+代表者: 2599名
+パートナー: 694名
+合計: 3293名
+
+------------------------------------------------------------
+Phase 1: 代表者を登録
+------------------------------------------------------------
+  [100/2599] 作成=95 更新=5 スキップ=0 エラー=0
+  [200/2599] 作成=195 更新=5 スキップ=0 エラー=0
+  [300/2599] 作成=295 更新=5 スキップ=0 エラー=0
+  [400/2599] 作成=394 更新=6 スキップ=0 エラー=0
+  [500/2599] 作成=494 更新=6 スキップ=0 エラー=0
+  [600/2599] 作成=594 更新=6 スキップ=0 エラー=0
+  [700/2599] 作成=693 更新=7 スキップ=0 エラー=0
+  [800/2599] 作成=793 更新=7 スキップ=0 エラー=0
+  [900/2599] 作成=893 更新=7 スキップ=0 エラー=0
+  [1000/2599] 作成=993 更新=7 スキップ=0 エラー=0
+  ERROR [1007] tike@okko.jp: The read operation timed out
+  [1100/2599] 作成=1092 更新=7 スキップ=0 エラー=1
+  [1200/2599] 作成=1192 更新=7 スキップ=0 エラー=1
+  [1300/2599] 作成=1292 更新=7 スキップ=0 エラー=1
+  [1400/2599] 作成=1392 更新=7 スキップ=0 エラー=1
+  [1500/2599] 作成=1492 更新=7 スキップ=0 エラー=1
+  [1600/2599] 作成=1592 更新=7 スキップ=0 エラー=1
+  [1700/2599] 作成=1692 更新=7 スキップ=0 エラー=1
+  [1800/2599] 作成=1792 更新=7 スキップ=0 エラー=1
+  [1900/2599] 作成=1892 更新=7 スキップ=0 エラー=1
+  [2000/2599] 作成=1992 更新=7 スキップ=0 エラー=1
+  [2100/2599] 作成=2092 更新=7 スキップ=0 エラー=1
+  [2200/2599] 作成=2192 更新=7 スキップ=0 エラー=1
+  [2300/2599] 作成=2292 更新=7 スキップ=0 エラー=1
+  [2400/2599] 作成=2392 更新=7 スキップ=0 エラー=1
+  [2500/2599] 作成=2492 更新=7 スキップ=0 エラー=1
+  ERROR [2597] Communeアドレスなし
+審査アドレスを右に記載: Auth create error for communeアドレスなし
+審査アドレスを右に記載: Unable to validate email address: invalid format
+  ERROR [2598] Communeアドレスなし
+審査アドレスを右に記載: Auth create error for communeアドレスなし
+審査アドレスを右に記載: Unable to validate email address: invalid format
+  ERROR [2599] Communeアドレスなし
+審査アドレスを右に記載: Auth create error for communeアドレスなし
+審査アドレスを右に記載: Unable to validate email address: invalid format
+
+代表者完了: 作成=2588 更新=7 スキップ=0 エラー=4
+
+------------------------------------------------------------
+Phase 2: パートナーを登録
+------------------------------------------------------------
+  ERROR [9] m011410sony@gmail.com 08078587198: Auth create error for m011410sony@gmail.com 08078587198: Unable to validate email address: invalid format
+  ERROR [61] 旧：s.sozawa.newstyle@gmail.com
+新：saki.sozawa@new-style.net: Auth create error for 旧：s.sozawa.newstyle@gmail.com
+新：saki.sozawa@new-style.net: Unable to validate email address: invalid format
+  ERROR [85] 退会済：freestyle20200110@gmail.com: Auth create error for 退会済：freestyle20200110@gmail.com: Unable to validate email address: invalid format
+  ERROR [86] 新：mayu.kasahara@tricog.co.jp
+旧：tetsuya.iwata@tricog.co.jp: Auth create error for 新：mayu.kasahara@tricog.co.jp
+旧：tetsuya.iwata@tricog.co.jp: Unable to validate email address: invalid format
+  [100/694] 作成=94 更新=2 スキップ=0 エラー=4
+  ERROR [112] 新：pooh.with.satomi@gmail.com
+旧：m.yamashita@fgd.jp: Auth create error for 新：pooh.with.satomi@gmail.com
+旧：m.yamashita@fgd.jp: Unable to validate email address: invalid format
+  ERROR [123] 新：g-nitta@yutakacommunications.co.jp
+旧：harubon065@gmail.com: Auth create error for 新：g-nitta@yutakacommunications.co.jp
+旧：harubon065@gmail.com: Unable to validate email address: invalid format
+  ERROR [125] meijiyahome
+@jcom.home.ne.jp: Auth create error for meijiyahome
+@jcom.home.ne.jp: Unable to validate email address: invalid format
+  ERROR [128] gya.tmm＠gmail.com: Auth create error for gya.tmm＠gmail.com: Unable to validate email address: invalid format
+  ERROR [160] 新：kimdaekwi@gmail.com
+旧：takenosyouji@yahoo.co.jp: Auth create error for 新：kimdaekwi@gmail.com
+旧：takenosyouji@yahoo.co.jp: Unable to validate email address: invalid format
+  ERROR [175] 新：ono.naoshi@nck.co.jp
+旧：sakurai.yuki@nck.co.jp: Auth create error for 新：ono.naoshi@nck.co.jp
+旧：sakurai.yuki@nck.co.jp: Unable to validate email address: invalid format
+  ERROR [184] 削除済：shinchan5838@gmail.com
+新：hirotouno0218@gmail.com: Auth create error for 削除済：shinchan5838@gmail.com
+新：hirotouno0218@gmail.com: Unable to validate email address: invalid format
+  ERROR [197] 旧：is.renovate21.endo@gmail.com
+新：m.iwata.isrenovate21@gmail.com: Auth create error for 旧：is.renovate21.endo@gmail.com
+新：m.iwata.isrenovate21@gmail.com: Unable to validate email address: invalid format
+  [200/694] 作成=184 更新=4 スキップ=0 エラー=12
+  ERROR [222] 新）maeda.mitsuki.michon@gmail.com
+旧）maeda.tanobase@gmail.com: Auth create error for 新）maeda.mitsuki.michon@gmail.com
+旧）maeda.tanobase@gmail.com: Unable to validate email address: invalid format
+  ERROR [254] 新：hazuki.orange.y.0929@ezweb.ne.jp
+旧：gankgank0427@gmail.com: Auth create error for 新：hazuki.orange.y.0929@ezweb.ne.jp
+旧：gankgank0427@gmail.com: Unable to validate email address: invalid format
+  ERROR [261] 旧：crows.and.worst@ezweb.ne.jp
+新：s.y.lanomu@ezweb.ne.jp: Auth create error for 旧：crows.and.worst@ezweb.ne.jp
+新：s.y.lanomu@ezweb.ne.jp: Unable to validate email address: invalid format
+  ERROR [276] 新：aiko.futa.0725@gmail.com
+旧：aiko.fu.725@icloud.com: Auth create error for 新：aiko.futa.0725@gmail.com
+旧：aiko.fu.725@icloud.com: Unable to validate email address: invalid format
+  [300/694] 作成=278 更新=6 スキップ=0 エラー=16
+  ERROR [303] 新：y.k19881227@gmail.com
+旧：kyon3518@gmail.com・komeya@yonemoto.or.jo: Auth create error for 新：y.k19881227@gmail.com
+旧：kyon3518@gmail.com・komeya@yonemoto.or.jo: Unable to validate email address: invalid format
+  ERROR [390] 旧：y.n.fukiagekouzai@outlook.jp
+新：y.n.fukiage@outlook.jp: Auth create error for 旧：y.n.fukiagekouzai@outlook.jp
+新：y.n.fukiage@outlook.jp: Unable to validate email address: invalid format
+  [400/694] 作成=376 更新=6 スキップ=0 エラー=18
+  ERROR [419] 新：hamada.ken@holly-co.jp（旧：owan.holly@gmail.com）: Auth create error for 新：hamada.ken@holly-co.jp（旧：owan.holly@gmail.com）: Unable to validate email address: invalid format
+  ERROR [450] cyobucan@docomo.ne.jp
+→cyobuchan@docomo.ne.jp: Auth create error for cyobucan@docomo.ne.jp
+→cyobuchan@docomo.ne.jp: Unable to validate email address: invalid format
+  [500/694] 作成=474 更新=6 スキップ=0 エラー=20
+  ERROR [547] fu-sen@ezweb.ne.jp
+変更→mimitomo2253@yahoo.co.jp: Auth create error for fu-sen@ezweb.ne.jp
+変更→mimitomo2253@yahoo.co.jp: Unable to validate email address: invalid format
+  [600/694] 作成=573 更新=6 スキップ=0 エラー=21
+  ERROR [633] 山之城 <sachiyama1020@gmail.com>: Auth create error for 山之城 <sachiyama1020@gmail.com>: Unable to validate email address: invalid format
+
+パートナー完了: 作成=666 更新=6 スキップ=0 エラー=22
+
+============================================================
+最終サマリー
+============================================================
+代表者:   作成=2588 更新=7 スキップ=0 エラー=4
+パートナー: 作成=666 更新=6 スキップ=0 エラー=22
+合計作成: 3254
+合計更新: 13
+合計エラー: 26

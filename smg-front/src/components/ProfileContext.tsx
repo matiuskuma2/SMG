@@ -20,6 +20,10 @@ interface ProfileData {
 	companyName: NonNullable<MstUser['company_name']>;
 	companyNameKana: NonNullable<MstUser['company_name_kana']>;
 	companyAddress: NonNullable<MstUser['company_address']>;
+	postalCode: string;
+	prefecture: string;
+	cityAddress: string;
+	buildingName: string;
 	industry: string;
 	industryId: NonNullable<MstUser['industry_id']>;
 	customIndustry: string;
@@ -79,6 +83,10 @@ export const ProfileProvider: React.FC<{ children: ReactNode }> = ({
 		companyName: '',
 		companyNameKana: '',
 		companyAddress: '',
+		postalCode: '',
+		prefecture: '',
+		cityAddress: '',
+		buildingName: '',
 		industry: '',
 		industryId: '',
 		customIndustry: '',
@@ -146,6 +154,10 @@ export const ProfileProvider: React.FC<{ children: ReactNode }> = ({
 					companyName: data.companyName,
 					companyNameKana: data.companyNameKana,
 					companyAddress: data.companyAddress,
+					postalCode: data.postalCode,
+					prefecture: data.prefecture,
+					cityAddress: data.cityAddress,
+					buildingName: data.buildingName,
 					industryId: data.industryId,
 					customIndustry: data.customIndustry,
 					introduction: data.introduction,

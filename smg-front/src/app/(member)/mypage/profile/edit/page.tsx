@@ -270,6 +270,35 @@ export default function ProfileEditPage(): JSX.Element {
 	const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
 	const [saving, setSaving] = useState<boolean>(false);
 	const [compressing, setCompressing] = useState<boolean>(false);
+	const [postalLoading, setPostalLoading] = useState<boolean>(false);
+
+	// 郵便番号から住所を自動補完
+	const handlePostalCodeLookup = async (postalCode: string): Promise<void> => {
+		handleInputChange('postalCode', postalCode);
+		// ハイフン除去して数字7桁かチェック
+		const cleaned = postalCode.replace(/-/g, '');
+		if (cleaned.length !== 7 || !/^\d{7}$/.test(cleaned)) return;
+
+		setPostalLoading(true);
+		try {
+			const res = await fetch(
+				`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${cleaned}`,
+			);
+			const json = await res.json();
+			if (json.results && json.results.length > 0) {
+				const result = json.results[0];
+				handleInputChange('prefecture', result.address1 || '');
+				handleInputChange(
+					'cityAddress',
+					`${result.address2 || ''}${result.address3 || ''}`,
+				);
+			}
+		} catch (error) {
+			console.error('郵便番号検索エラー:', error);
+		} finally {
+			setPostalLoading(false);
+		}
+	};
 
 	// 業界一覧を取得
 	useEffect(() => {
@@ -838,6 +867,99 @@ export default function ProfileEditPage(): JSX.Element {
 								handleInputChange('companyAddress', e.target.value)
 							}
 							placeholder="会社所在地を入力"
+						/>
+					</FormSection>
+
+					{/* 郵便番号 */}
+					<FormSection title="郵便番号">
+						<div
+							className={css({
+								display: 'flex',
+								alignItems: 'center',
+								gap: '2',
+							})}
+						>
+							<span className={css({ fontSize: 'sm', color: 'gray.600' })}>
+								〒
+							</span>
+							<input
+								id="postal-code"
+								type="text"
+								inputMode="numeric"
+								value={formData.postalCode}
+								onChange={(e) => handlePostalCodeLookup(e.target.value)}
+								className={css({
+									w: '200px',
+									p: '3',
+									border: '1px solid',
+									borderColor: 'gray.300',
+									rounded: 'md',
+									fontSize: 'sm',
+									bg: 'white',
+									_focus: {
+										outline: 'none',
+										borderColor: 'blue.500',
+										boxShadow: '0 0 0 1px var(--colors-blue-500)',
+									},
+								})}
+								placeholder="1234567"
+								maxLength={8}
+							/>
+							{postalLoading && (
+								<span
+									className={css({
+										fontSize: 'xs',
+										color: 'blue.500',
+									})}
+								>
+									検索中...
+								</span>
+							)}
+						</div>
+						<p
+							className={css({
+								fontSize: 'xs',
+								color: 'gray.500',
+								mt: '1',
+							})}
+						>
+							郵便番号を入力すると都道府県・住所が自動入力されます
+						</p>
+					</FormSection>
+
+					{/* 都道府県 */}
+					<FormSection title="都道府県">
+						<FormInput
+							id="prefecture"
+							value={formData.prefecture}
+							onChange={(e) =>
+								handleInputChange('prefecture', e.target.value)
+							}
+							placeholder="都道府県"
+						/>
+					</FormSection>
+
+					{/* 住所 */}
+					<FormSection title="住所">
+						<FormInput
+							id="city-address"
+							value={formData.cityAddress}
+							onChange={(e) =>
+								handleInputChange('cityAddress', e.target.value)
+							}
+							placeholder="市区町村・番地"
+						/>
+					</FormSection>
+
+					{/* 建物名 */}
+					<FormSection title="建物名・部屋番号">
+						<FormInput
+							id="building-name"
+							value={formData.buildingName}
+							onChange={(e) =>
+								handleInputChange('buildingName', e.target.value)
+							}
+							placeholder="建物名・部屋番号（任意）"
 						/>
 					</FormSection>
 
