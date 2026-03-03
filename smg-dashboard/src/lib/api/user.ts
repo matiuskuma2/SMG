@@ -226,7 +226,7 @@ export async function exportUsersCSVAction(
     }
 
     // CSV ヘッダー
-    const headers = ['名前', 'メールアドレス', '電話番号', '属性', '会社名', '所属グループ', '入会日', '最終ログイン'];
+    const headers = ['名前', 'メールアドレス', '電話番号', '属性', '会社名', '所属グループ', '入会日', 'ログイン状況', '最終ログイン日時'];
 
     // CSV行を生成
     const rows = (data || []).map((user) => {
@@ -240,6 +240,12 @@ export async function exportUsersCSVAction(
         return new Date(dateStr).toLocaleDateString('ja-JP');
       };
 
+      const formatDateTime = (dateStr: string | null) => {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        return `${d.toLocaleDateString('ja-JP')} ${d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`;
+      };
+
       return [
         user.username || '',
         user.email || '',
@@ -248,7 +254,8 @@ export async function exportUsersCSVAction(
         user.company_name || '',
         groups,
         formatDate(user.created_at),
-        formatDate(user.last_login_at),
+        user.last_login_at ? 'ログイン済み' : '未ログイン',
+        formatDateTime(user.last_login_at),
       ];
     });
 
