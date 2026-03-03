@@ -14,40 +14,91 @@ export default function ResetPasswordPage() {
 	const [message, setMessage] = useState('');
 	const [isError, setIsError] = useState(false);
 	const [isValidSession, setIsValidSession] = useState(false);
+	const [isChecking, setIsChecking] = useState(true);
 	const supabase = createClient();
 
 	useEffect(() => {
-		// URLからセッション情報を確認
 		const checkSession = async () => {
-			const {
-				data: { session },
-			} = await supabase.auth.getSession();
-			if (session) {
-				setIsValidSession(true);
-			} else {
-				// トークンをチェック
-				const accessToken = searchParams.get('access_token');
-				const refreshToken = searchParams.get('refresh_token');
-				const type = searchParams.get('type');
+			try {
+				// 1. 既にセッションがある場合（ミドルウェアがcodeを処理済み）
+				const {
+					data: { session },
+				} = await supabase.auth.getSession();
+				if (session) {
+					setIsValidSession(true);
+					setIsChecking(false);
+					return;
+				}
+
+				// 2. PKCEフロー: URLに code パラメータがある場合
+				const code = searchParams.get('code');
+				if (code) {
+					const { error } = await supabase.auth.exchangeCodeForSession(code);
+					if (!error) {
+						setIsValidSession(true);
+						setIsChecking(false);
+						return;
+					}
+					console.error('Code exchange error:', error);
+					setIsError(true);
+					setMessage(
+						'リンクの有効期限が切れているか、既に使用済みです。パスワードリセットを再度実行してください。',
+					);
+					setIsChecking(false);
+					return;
+				}
+
+				// 3. レガシーフロー: URLハッシュフラグメントからトークンを取得
+				//    （ブラウザ側でハッシュが処理される場合）
+				const hashParams = new URLSearchParams(
+					window.location.hash.substring(1),
+				);
+				const accessToken = hashParams.get('access_token');
+				const refreshToken = hashParams.get('refresh_token');
+				const type = hashParams.get('type');
 
 				if (accessToken && refreshToken && type === 'recovery') {
 					const { error } = await supabase.auth.setSession({
 						access_token: accessToken,
 						refresh_token: refreshToken,
 					});
-
 					if (!error) {
 						setIsValidSession(true);
-					} else {
-						setIsError(true);
-						setMessage('セッションの復元に失敗しました。');
+						setIsChecking(false);
+						return;
 					}
-				} else {
-					setIsError(true);
-					setMessage(
-						'無効なリンクです。パスワードリセットを再度実行してください。',
-					);
+					console.error('Session restore error:', error);
 				}
+
+				// 4. クエリパラメータからトークンを取得（旧互換）
+				const qAccessToken = searchParams.get('access_token');
+				const qRefreshToken = searchParams.get('refresh_token');
+				const qType = searchParams.get('type');
+
+				if (qAccessToken && qRefreshToken && qType === 'recovery') {
+					const { error } = await supabase.auth.setSession({
+						access_token: qAccessToken,
+						refresh_token: qRefreshToken,
+					});
+					if (!error) {
+						setIsValidSession(true);
+						setIsChecking(false);
+						return;
+					}
+					console.error('Query token session error:', error);
+				}
+
+				// どの方法でもセッションが取得できなかった
+				setIsError(true);
+				setMessage(
+					'無効なリンクです。パスワードリセットを再度実行してください。',
+				);
+			} catch (err) {
+				console.error('Session check error:', err);
+				setIsError(true);
+				setMessage('エラーが発生しました。パスワードリセットを再度実行してください。');
+			} finally {
+				setIsChecking(false);
 			}
 		};
 
@@ -103,7 +154,7 @@ export default function ResetPasswordPage() {
 		router.push('/login');
 	};
 
-	if (!isValidSession && !isError) {
+	if (isChecking) {
 		return (
 			<div
 				className={css({

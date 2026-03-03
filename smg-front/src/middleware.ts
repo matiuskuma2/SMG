@@ -45,6 +45,21 @@ export async function updateSession(request: NextRequest) {
 		data: { user },
 	} = await supabase.auth.getUser();
 
+	// PKCEフロー: URLに code パラメータがある場合はセッションを確立
+	const code = request.nextUrl.searchParams.get('code');
+	if (code && !user) {
+		const { data: exchangeData, error } = await supabase.auth.exchangeCodeForSession(code);
+		if (!error && exchangeData.session) {
+			// code交換成功 → codeパラメータを除いた同じパスにリダイレクト
+			// reset-passwordの場合はそのまま進む（パスワード変更フォームを表示）
+			const url = request.nextUrl.clone();
+			url.searchParams.delete('code');
+			// リダイレクトせずにcookieにセッションを設定してそのまま進む
+			return supabaseResponse;
+		}
+		// code交換失敗 → そのままページに進む（ページ側でエラー表示）
+	}
+
 	// ユーザーがログインしている場合、所属グループのステータスをチェック
 	if (user) {
 		// RLSをバイパスするためservice_roleキーでDBクエリ用クライアントを作成
