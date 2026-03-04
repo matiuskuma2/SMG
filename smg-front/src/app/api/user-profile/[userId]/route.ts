@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase-admin';
 
 // サーバーサイドでservice_roleを使ってユーザープロフィールを取得（RLSバイパス）
 export const dynamic = 'force-dynamic';
@@ -18,27 +17,34 @@ export async function GET(
 			);
 		}
 
-		const supabase = createAdminClient();
+		const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+		const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-		const { data, error } = await supabase
-			.from('mst_user')
-			.select(`
-				*,
-				mst_industry (
-					industry_name
-				)
-			`)
-			.eq('user_id', userId)
-			.is('deleted_at', null)
-			.maybeSingle();
+		// Direct REST API call to bypass any client-side issues
+		const restUrl = `${supabaseUrl}/rest/v1/mst_user?user_id=eq.${userId}&deleted_at=is.null&select=*,mst_industry(industry_name)`;
+		
+		const restResponse = await fetch(restUrl, {
+			headers: {
+				'apikey': serviceRoleKey,
+				'Authorization': `Bearer ${serviceRoleKey}`,
+				'Content-Type': 'application/json',
+				'Accept': 'application/json',
+				'Prefer': 'return=representation',
+			},
+			cache: 'no-store',
+		});
 
-		if (error) {
-			console.error('Error fetching user profile:', error);
+		if (!restResponse.ok) {
+			const errorText = await restResponse.text();
+			console.error('REST API error:', errorText);
 			return NextResponse.json(
 				{ error: 'プロフィールの取得に失敗しました' },
 				{ status: 500 }
 			);
 		}
+
+		const results = await restResponse.json();
+		const data = results[0] || null;
 
 		if (!data) {
 			return NextResponse.json(
@@ -50,12 +56,10 @@ export async function GET(
 		// 業種名を取得
 		const industryName = data.mst_industry && Array.isArray(data.mst_industry)
 			? data.mst_industry[0]?.industry_name
-			: (data.mst_industry as any)?.industry_name;
+			: data.mst_industry?.industry_name;
 
 		const profile = {
 			...data,
-			_debug_raw_email: data.email,
-			_debug_timestamp: new Date().toISOString(),
 			industry_name: industryName || '',
 			social_media_links: data.social_media_links || {},
 			is_user_name_kana_visible: data.is_user_name_kana_visible ?? true,
