@@ -93,6 +93,13 @@ export async function updateSession(request: NextRequest) {
 	}
 
 	const anonymousRoutes = ['/login', '/member/login', '/forgotPassword', '/reset-password', '/signup', '/x7k9m2p'];
+	// プレフィックスマッチが必要なパブリックルート（動的パス対応）
+	const anonymousRoutePrefixes = ['/nfc-profile/'];
+
+	const isAnonymousRoute = (pathname: string) => {
+		if (anonymousRoutes.includes(pathname)) return true;
+		return anonymousRoutePrefixes.some(prefix => pathname.startsWith(prefix));
+	};
 
 	if (user) {
 		if (anonymousRoutes.includes(request.nextUrl.pathname)) {
@@ -109,7 +116,7 @@ export async function updateSession(request: NextRequest) {
 
 		if (
 			request.nextUrl.pathname.startsWith('/member') &&
-			!anonymousRoutes.includes(request.nextUrl.pathname)
+			!isAnonymousRoute(request.nextUrl.pathname)
 		) {
 			const url = request.nextUrl.clone();
 			url.pathname = '/login';
@@ -117,7 +124,7 @@ export async function updateSession(request: NextRequest) {
 		}
 
 		if (
-			!anonymousRoutes.includes(request.nextUrl.pathname) &&
+			!isAnonymousRoute(request.nextUrl.pathname) &&
 			!request.nextUrl.pathname.startsWith('/api/')
 		) {
 			const url = request.nextUrl.clone();
