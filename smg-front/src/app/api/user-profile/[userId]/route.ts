@@ -54,6 +54,8 @@ export async function GET(
 
 		const profile = {
 			...data,
+			_debug_raw_email: data.email,
+			_debug_timestamp: new Date().toISOString(),
 			industry_name: industryName || '',
 			social_media_links: data.social_media_links || {},
 			is_user_name_kana_visible: data.is_user_name_kana_visible ?? true,
