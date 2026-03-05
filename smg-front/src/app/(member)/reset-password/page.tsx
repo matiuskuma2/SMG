@@ -20,7 +20,7 @@ export default function ResetPasswordPage() {
 	useEffect(() => {
 		const checkSession = async () => {
 			try {
-				// 1. 既にセッションがある場合（ミドルウェアがcodeを処理済み）
+				// 1. 既にセッションがある場合（ミドルウェアがcodeを処理済み → リダイレクトでcode削除済み）
 				const {
 					data: { session },
 				} = await supabase.auth.getSession();
@@ -30,7 +30,7 @@ export default function ResetPasswordPage() {
 					return;
 				}
 
-				// 2. PKCEフロー: URLに code パラメータがある場合
+				// 2. PKCEフロー: URLに code パラメータがある場合（ミドルウェアでの処理失敗時のフォールバック）
 				const code = searchParams.get('code');
 				if (code) {
 					const { error } = await supabase.auth.exchangeCodeForSession(code);
@@ -49,7 +49,6 @@ export default function ResetPasswordPage() {
 				}
 
 				// 3. レガシーフロー: URLハッシュフラグメントからトークンを取得
-				//    （ブラウザ側でハッシュが処理される場合）
 				const hashParams = new URLSearchParams(
 					window.location.hash.substring(1),
 				);

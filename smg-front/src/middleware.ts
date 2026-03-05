@@ -47,21 +47,33 @@ export async function updateSession(request: NextRequest) {
 
 	// PKCEフロー: URLに code パラメータがある場合はセッションを確立
 	const code = request.nextUrl.searchParams.get('code');
-	if (code && !user) {
+	if (code) {
+		// ログイン済みでもcodeがある場合は交換を試みる（パスワードリセット等）
+		// まず既存セッションがある場合はサインアウトしてからcode交換
+		if (user) {
+			await supabase.auth.signOut();
+		}
 		const { data: exchangeData, error } = await supabase.auth.exchangeCodeForSession(code);
 		if (!error && exchangeData.session) {
 			// code交換成功 → codeパラメータを除いた同じパスにリダイレクト
-			// reset-passwordの場合はそのまま進む（パスワード変更フォームを表示）
+			// これによりページ側でcodeを再度交換する問題を防ぐ
 			const url = request.nextUrl.clone();
 			url.searchParams.delete('code');
-			// リダイレクトせずにcookieにセッションを設定してそのまま進む
-			return supabaseResponse;
+			const redirectResponse = NextResponse.redirect(url);
+			// supabaseResponseに設定されたセッションcookieをリダイレクトレスポンスに転送
+			supabaseResponse.cookies.getAll().forEach((cookie) => {
+				redirectResponse.cookies.set(cookie.name, cookie.value, {
+					...cookie,
+				});
+			});
+			return redirectResponse;
 		}
 		// code交換失敗 → そのままページに進む（ページ側でエラー表示）
 	}
 
 	// ユーザーがログインしている場合、所属グループのステータスをチェック
-	if (user) {
+	// ただし、/reset-passwordの場合はスキップ（パスワード変更を優先）
+	if (user && request.nextUrl.pathname !== '/reset-password') {
 		// RLSをバイパスするためservice_roleキーでDBクエリ用クライアントを作成
 		const supabaseAdmin = createClient(
 			process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -102,7 +114,9 @@ export async function updateSession(request: NextRequest) {
 	};
 
 	if (user) {
-		if (anonymousRoutes.includes(request.nextUrl.pathname)) {
+		// /reset-password はログイン済みでもアクセスを許可する（パスワード変更のため）
+		const allowedWhenLoggedIn = ['/reset-password'];
+		if (anonymousRoutes.includes(request.nextUrl.pathname) && !allowedWhenLoggedIn.includes(request.nextUrl.pathname)) {
 			const url = request.nextUrl.clone();
 			url.pathname = '/';
 			return NextResponse.redirect(url);
