@@ -3,170 +3,123 @@
 import { createClient } from '@/lib/supabase';
 import { css } from '@/styled-system/css';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
+/**
+ * reset-password ページ
+ *
+ * このページは以下のケースで使用される:
+ * 1. 旧リンク式: メールのリンクをクリック → ?code=xxx でリダイレクト → PKCE交換でセッション確立
+ * 2. 旧リンク式エラー: Supabaseが ?error=access_denied&error_code=otp_expired でリダイレクト
+ * 3. OTPコード入力式のフォールバック: forgotPasswordページが使えない場合の代替
+ *
+ * メインの新フローは forgotPassword ページで完結する。
+ */
 export default function ResetPasswordPage() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
+	const supabase = createClient();
+
+	const [step, setStep] = useState<'checking' | 'otp' | 'newPassword' | 'error'>('checking');
+	const [email, setEmail] = useState('');
+	const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
 	const [password, setPassword] = useState('');
 	const [confirmPassword, setConfirmPassword] = useState('');
 	const [isLoading, setIsLoading] = useState(false);
 	const [message, setMessage] = useState('');
 	const [isError, setIsError] = useState(false);
-	const [isValidSession, setIsValidSession] = useState(false);
-	const [isChecking, setIsChecking] = useState(true);
-	const [showResendForm, setShowResendForm] = useState(false);
-	const [resendEmail, setResendEmail] = useState('');
-	const [resendMessage, setResendMessage] = useState('');
-	const [isResending, setIsResending] = useState(false);
-	const supabase = createClient();
 
-	// パスワードリセットメール再送信
-	const handleResend = async (e: React.FormEvent<HTMLFormElement>) => {
-		e.preventDefault();
-		setIsResending(true);
-		setResendMessage('');
-		try {
-			const { error } = await supabase.auth.resetPasswordForEmail(resendEmail, {
-				redirectTo: `${window.location.origin}/reset-password`,
-			});
-			if (error) {
-				setResendMessage(`エラー: ${error.message}`);
-			} else {
-				setResendMessage('パスワードリセットメールを再送信しました。メールをご確認ください。\n※メールのリンクはすぐにタップしてください。');
-			}
-		} catch {
-			setResendMessage('エラーが発生しました。もう一度お試しください。');
-		} finally {
-			setIsResending(false);
-		}
-	};
+	const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
 	useEffect(() => {
 		const checkSession = async () => {
 			try {
-				// 0. Supabaseがerrorパラメータ付きでリダイレクトしてきた場合
-				//    （例: ?error=access_denied&error_code=otp_expired&error_description=...）
-				//    SendGridクリックトラッキング等でOTPが先に消費されると発生
-				const errorParam = searchParams.get('error');
+				// Supabaseがerrorパラメータ付きでリダイレクトしてきた場合
 				const errorCode = searchParams.get('error_code');
 				const errorDescription = searchParams.get('error_description');
-				if (errorParam || errorCode) {
-					console.error('Supabase redirect error:', { errorParam, errorCode, errorDescription });
+				if (errorCode) {
+					setStep('otp');
 					setIsError(true);
 					if (errorCode === 'otp_expired') {
 						setMessage(
-							'パスワードリセットリンクの有効期限が切れています。\nメールのセキュリティスキャン（SendGrid等）によりリンクが先に消費された可能性があります。\n下のフォームからもう一度メールを送信し、届いたらすぐにリンクをタップしてください。',
+							'リンクの有効期限が切れています。\nメールアドレスを入力し、新しい確認コードを取得してください。',
 						);
 					} else {
 						setMessage(
-							`パスワードリセットに失敗しました: ${errorDescription?.replace(/\+/g, ' ') || errorParam || 'Unknown error'}\n下のフォームからもう一度お試しください。`,
+							`エラーが発生しました: ${errorDescription?.replace(/\+/g, ' ') || 'Unknown error'}\nメールアドレスを入力し、再度お試しください。`,
 						);
 					}
-					setShowResendForm(true);
-					setIsChecking(false);
 					return;
 				}
 
-				// 1. 既にセッションがある場合（ミドルウェアがcodeを処理済み → リダイレクトでcode削除済み）
+				// 既にセッションがある場合（ミドルウェアがcodeを処理済み）
 				const {
 					data: { session },
 				} = await supabase.auth.getSession();
 				if (session) {
-					setIsValidSession(true);
-					setIsChecking(false);
+					setStep('newPassword');
 					return;
 				}
 
-				// 2. PKCEフロー: URLに code パラメータがある場合（ミドルウェアでの処理失敗時のフォールバック）
+				// PKCEフロー: URLに code パラメータがある場合
 				const code = searchParams.get('code');
 				if (code) {
 					const { error } = await supabase.auth.exchangeCodeForSession(code);
 					if (!error) {
-						setIsValidSession(true);
-						setIsChecking(false);
+						setStep('newPassword');
 						return;
 					}
 					console.error('Code exchange error:', error);
-					setIsError(true);
-					setMessage(
-						'リンクの有効期限が切れているか、既に使用済みです。\n下のフォームからパスワードリセットを再度実行してください。',
-					);
-					setShowResendForm(true);
-					setIsChecking(false);
-					return;
 				}
 
-				// 3. レガシーフロー: URLハッシュフラグメントからトークンを取得
-				const hashParams = new URLSearchParams(
-					window.location.hash.substring(1),
-				);
-				const accessToken = hashParams.get('access_token');
-				const refreshToken = hashParams.get('refresh_token');
-				const type = hashParams.get('type');
-
-				if (accessToken && refreshToken && type === 'recovery') {
-					const { error } = await supabase.auth.setSession({
-						access_token: accessToken,
-						refresh_token: refreshToken,
-					});
-					if (!error) {
-						setIsValidSession(true);
-						setIsChecking(false);
-						return;
-					}
-					console.error('Session restore error:', error);
-				}
-
-				// 4. クエリパラメータからトークンを取得（旧互換）
-				const qAccessToken = searchParams.get('access_token');
-				const qRefreshToken = searchParams.get('refresh_token');
-				const qType = searchParams.get('type');
-
-				if (qAccessToken && qRefreshToken && qType === 'recovery') {
-					const { error } = await supabase.auth.setSession({
-						access_token: qAccessToken,
-						refresh_token: qRefreshToken,
-					});
-					if (!error) {
-						setIsValidSession(true);
-						setIsChecking(false);
-						return;
-					}
-					console.error('Query token session error:', error);
-				}
-
-				// どの方法でもセッションが取得できなかった
-				setIsError(true);
-				setMessage(
-					'無効なリンクです。パスワードリセットを再度実行してください。',
-				);
-				setShowResendForm(true);
+				// セッションもcodeもない → OTPコード入力フォームを表示
+				setStep('otp');
+				setMessage('メールアドレスと確認コードを入力してパスワードを再設定してください。');
 			} catch (err) {
 				console.error('Session check error:', err);
+				setStep('otp');
 				setIsError(true);
-				setMessage('エラーが発生しました。パスワードリセットを再度実行してください。');
-				setShowResendForm(true);
-			} finally {
-				setIsChecking(false);
+				setMessage('エラーが発生しました。メールアドレスと確認コードで再度お試しください。');
 			}
 		};
-
 		checkSession();
 	}, [searchParams, supabase.auth]);
 
-	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-		e.preventDefault();
-
-		if (password !== confirmPassword) {
-			setIsError(true);
-			setMessage('パスワードが一致しません。');
+	// OTP入力ハンドラー
+	const handleOtpChange = (index: number, value: string) => {
+		if (value.length > 1) {
+			const digits = value.replace(/\D/g, '').slice(0, 6).split('');
+			const newOtp = [...otpDigits];
+			digits.forEach((d, i) => {
+				if (index + i < 6) newOtp[index + i] = d;
+			});
+			setOtpDigits(newOtp);
+			const nextIndex = Math.min(index + digits.length, 5);
+			otpRefs.current[nextIndex]?.focus();
 			return;
 		}
+		if (!/^\d?$/.test(value)) return;
+		const newOtp = [...otpDigits];
+		newOtp[index] = value;
+		setOtpDigits(newOtp);
+		if (value && index < 5) {
+			otpRefs.current[index + 1]?.focus();
+		}
+	};
 
-		if (password.length < 6) {
+	const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+		if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
+			otpRefs.current[index - 1]?.focus();
+		}
+	};
+
+	// OTPコード検証
+	const handleVerifyOtp = async (e: React.FormEvent<HTMLFormElement>) => {
+		e.preventDefault();
+		const token = otpDigits.join('');
+		if (token.length !== 6 || !email) {
 			setIsError(true);
-			setMessage('パスワードは6文字以上で入力してください。');
+			setMessage('メールアドレスと6桁のコードを入力してください。');
 			return;
 		}
 
@@ -175,24 +128,19 @@ export default function ResetPasswordPage() {
 		setIsError(false);
 
 		try {
-			const { error } = await supabase.auth.updateUser({
-				password: password,
+			const { error } = await supabase.auth.verifyOtp({
+				email,
+				token,
+				type: 'recovery',
 			});
-
 			if (error) {
 				setIsError(true);
-				setMessage(error.message);
+				setMessage('コードが無効または有効期限切れです。\n確認コードを再送信してお試しください。');
 			} else {
-				setMessage(
-					'パスワードが正常に更新されました。ログインページにリダイレクトします。',
-				);
-				setTimeout(async () => {
-					// パスワード更新後、ログアウトしてからログインページへ遷移
-					await supabase.auth.signOut();
-					router.push('/login');
-				}, 3000);
+				setStep('newPassword');
+				setMessage('');
 			}
-		} catch (error) {
+		} catch {
 			setIsError(true);
 			setMessage('エラーが発生しました。もう一度お試しください。');
 		} finally {
@@ -200,11 +148,75 @@ export default function ResetPasswordPage() {
 		}
 	};
 
-	const handleBackToLogin = () => {
-		router.push('/login');
+	// 確認コード再送信
+	const handleResendOtp = async () => {
+		if (!email) {
+			setIsError(true);
+			setMessage('まずメールアドレスを入力してください。');
+			return;
+		}
+		setIsLoading(true);
+		setMessage('');
+		setIsError(false);
+		setOtpDigits(['', '', '', '', '', '']);
+
+		try {
+			const { error } = await supabase.auth.resetPasswordForEmail(email);
+			if (error) {
+				setIsError(true);
+				setMessage(error.message);
+			} else {
+				setMessage('確認コードを再送信しました。メールをご確認ください。');
+			}
+		} catch {
+			setIsError(true);
+			setMessage('エラーが発生しました。もう一度お試しください。');
+		} finally {
+			setIsLoading(false);
+		}
 	};
 
-	if (isChecking) {
+	// パスワード変更
+	const handleChangePassword = async (e: React.FormEvent<HTMLFormElement>) => {
+		e.preventDefault();
+
+		if (password.length < 6) {
+			setIsError(true);
+			setMessage('パスワードは6文字以上で入力してください。');
+			return;
+		}
+		if (password !== confirmPassword) {
+			setIsError(true);
+			setMessage('パスワードが一致しません。');
+			return;
+		}
+
+		setIsLoading(true);
+		setMessage('');
+		setIsError(false);
+
+		try {
+			const { error } = await supabase.auth.updateUser({ password });
+			if (error) {
+				setIsError(true);
+				setMessage(error.message);
+			} else {
+				setMessage('パスワードが正常に更新されました。ログインページに移動します...');
+				await supabase.auth.signOut();
+				setTimeout(() => router.push('/login'), 3000);
+			}
+		} catch {
+			setIsError(true);
+			setMessage('エラーが発生しました。もう一度お試しください。');
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	const handleBackToLogin = () => router.push('/login');
+
+	// ローディング画面
+	if (step === 'checking') {
 		return (
 			<div
 				className={css({
@@ -216,9 +228,7 @@ export default function ResetPasswordPage() {
 					bg: 'white',
 				})}
 			>
-				<div className={css({ textAlign: 'center' })}>
-					<p>セッションを確認中...</p>
-				</div>
+				<p>確認中...</p>
 			</div>
 		);
 	}
@@ -251,9 +261,10 @@ export default function ResetPasswordPage() {
 						mb: '8',
 					})}
 				>
-					新しいパスワード設定
+					{step === 'newPassword' ? '新しいパスワード設定' : 'パスワード再設定'}
 				</h1>
 
+				{/* メッセージ表示 */}
 				{message && (
 					<div
 						className={css({
@@ -277,8 +288,127 @@ export default function ResetPasswordPage() {
 					</div>
 				)}
 
-				{isValidSession && (
-					<form onSubmit={handleSubmit} className={css({ spaceY: '6' })}>
+				{/* OTPコード入力フォーム */}
+				{step === 'otp' && (
+					<form onSubmit={handleVerifyOtp} className={css({ spaceY: '6' })}>
+						<div>
+							<label
+								htmlFor="reset-email"
+								className={css({
+									display: 'block',
+									mb: '2',
+									fontSize: 'sm',
+									color: 'gray.700',
+									fontWeight: 'medium',
+								})}
+							>
+								メールアドレス
+							</label>
+							<input
+								type="email"
+								id="reset-email"
+								placeholder="メールアドレス"
+								value={email}
+								onChange={(e) => setEmail(e.target.value)}
+								required
+								disabled={isLoading}
+								className={css({
+									w: 'full',
+									border: '1px solid',
+									borderColor: 'gray.300',
+									borderRadius: 'md',
+									p: '3',
+									_focus: { borderColor: 'gray.500', outline: 'none' },
+									_disabled: { bg: 'gray.100', cursor: 'not-allowed' },
+								})}
+							/>
+						</div>
+						<div>
+							<label
+								className={css({
+									display: 'block',
+									mb: '2',
+									fontSize: 'sm',
+									color: 'gray.700',
+									fontWeight: 'medium',
+									textAlign: 'center',
+								})}
+							>
+								6桁の確認コード
+							</label>
+							<div
+								className={css({
+									display: 'flex',
+									justifyContent: 'center',
+									gap: '2',
+								})}
+							>
+								{otpDigits.map((digit, i) => (
+									<input
+										key={i}
+										ref={(el) => { otpRefs.current[i] = el; }}
+										type="text"
+										inputMode="numeric"
+										maxLength={6}
+										value={digit}
+										onChange={(e) => handleOtpChange(i, e.target.value)}
+										onKeyDown={(e) => handleOtpKeyDown(i, e)}
+										disabled={isLoading}
+										className={css({
+											w: '12',
+											h: '14',
+											textAlign: 'center',
+											fontSize: 'xl',
+											fontWeight: 'bold',
+											border: '2px solid',
+											borderColor: 'gray.300',
+											borderRadius: 'md',
+											_focus: { borderColor: 'blue.500', outline: 'none' },
+											_disabled: { bg: 'gray.100', cursor: 'not-allowed' },
+										})}
+									/>
+								))}
+							</div>
+						</div>
+						<div className={css({ textAlign: 'center' })}>
+							<button
+								type="submit"
+								disabled={isLoading || otpDigits.join('').length !== 6 || !email}
+								className={css({
+									bg: 'blue.500',
+									color: 'white',
+									py: '3',
+									px: '8',
+									borderRadius: 'md',
+									_hover: { bg: 'blue.600' },
+									_disabled: { bg: 'gray.400', cursor: 'not-allowed' },
+								})}
+							>
+								{isLoading ? '確認中...' : 'コードを確認'}
+							</button>
+						</div>
+						<div className={css({ textAlign: 'center' })}>
+							<button
+								type="button"
+								onClick={handleResendOtp}
+								disabled={isLoading || !email}
+								className={css({
+									color: 'blue.500',
+									fontSize: 'sm',
+									textDecoration: 'underline',
+									_hover: { color: 'blue.600' },
+									_disabled: { color: 'gray.400', cursor: 'not-allowed' },
+								})}
+							>
+								確認コードを再送信
+							</button>
+						</div>
+					</form>
+				)}
+
+				{/* パスワード変更フォーム */}
+				{step === 'newPassword' && (
+					<form onSubmit={handleChangePassword} className={css({ spaceY: '6' })}>
 						<div>
 							<label
 								htmlFor="password"
@@ -295,7 +425,7 @@ export default function ResetPasswordPage() {
 							<input
 								type="password"
 								id="password"
-								placeholder="新しいパスワード"
+								placeholder="新しいパスワード（6文字以上）"
 								value={password}
 								onChange={(e) => setPassword(e.target.value)}
 								required
@@ -306,18 +436,11 @@ export default function ResetPasswordPage() {
 									borderColor: 'gray.300',
 									borderRadius: 'md',
 									p: '3',
-									_focus: {
-										borderColor: 'gray.500',
-										outline: 'none',
-									},
-									_disabled: {
-										bg: 'gray.100',
-										cursor: 'not-allowed',
-									},
+									_focus: { borderColor: 'gray.500', outline: 'none' },
+									_disabled: { bg: 'gray.100', cursor: 'not-allowed' },
 								})}
 							/>
 						</div>
-
 						<div>
 							<label
 								htmlFor="confirmPassword"
@@ -345,18 +468,11 @@ export default function ResetPasswordPage() {
 									borderColor: 'gray.300',
 									borderRadius: 'md',
 									p: '3',
-									_focus: {
-										borderColor: 'gray.500',
-										outline: 'none',
-									},
-									_disabled: {
-										bg: 'gray.100',
-										cursor: 'not-allowed',
-									},
+									_focus: { borderColor: 'gray.500', outline: 'none' },
+									_disabled: { bg: 'gray.100', cursor: 'not-allowed' },
 								})}
 							/>
 						</div>
-
 						<div className={css({ textAlign: 'center' })}>
 							<button
 								type="submit"
@@ -367,13 +483,8 @@ export default function ResetPasswordPage() {
 									py: '3',
 									px: '8',
 									borderRadius: 'md',
-									_hover: {
-										bg: 'blue.600',
-									},
-									_disabled: {
-										bg: 'gray.400',
-										cursor: 'not-allowed',
-									},
+									_hover: { bg: 'blue.600' },
+									_disabled: { bg: 'gray.400', cursor: 'not-allowed' },
 								})}
 							>
 								{isLoading ? 'パスワード更新中...' : 'パスワードを更新'}
@@ -382,80 +493,7 @@ export default function ResetPasswordPage() {
 					</form>
 				)}
 
-				{/* パスワードリセット再送信フォーム（エラー時に表示） */}
-				{showResendForm && (
-					<div className={css({
-						mt: '6',
-						p: '6',
-						bg: 'gray.50',
-						borderRadius: 'md',
-						border: '1px solid',
-						borderColor: 'gray.200',
-					})}>
-						<h2 className={css({
-							fontSize: 'md',
-							fontWeight: 'bold',
-							mb: '3',
-							color: 'gray.700',
-						})}>
-							パスワードリセットメールを再送信
-						</h2>
-						<p className={css({
-							fontSize: 'xs',
-							color: 'gray.500',
-							mb: '4',
-							whiteSpace: 'pre-line',
-						})}>
-							{'メールが届いたら、できるだけ早くリンクをタップしてください。\n時間が経つとリンクが無効になる場合があります。'}
-						</p>
-						<form onSubmit={handleResend} className={css({ spaceY: '3' })}>
-							<input
-								type="email"
-								placeholder="メールアドレス"
-								value={resendEmail}
-								onChange={(e) => setResendEmail(e.target.value)}
-								required
-								disabled={isResending}
-								className={css({
-									w: 'full',
-									border: '1px solid',
-									borderColor: 'gray.300',
-									borderRadius: 'md',
-									p: '3',
-									fontSize: 'sm',
-									_focus: { borderColor: 'blue.500', outline: 'none' },
-								})}
-							/>
-							<button
-								type="submit"
-								disabled={isResending}
-								className={css({
-									w: 'full',
-									bg: 'blue.500',
-									color: 'white',
-									py: '2',
-									borderRadius: 'md',
-									fontSize: 'sm',
-									_hover: { bg: 'blue.600' },
-									_disabled: { bg: 'gray.400', cursor: 'not-allowed' },
-								})}
-							>
-								{isResending ? '送信中...' : 'リセットメールを再送信'}
-							</button>
-						</form>
-						{resendMessage && (
-							<p className={css({
-								mt: '3',
-								fontSize: 'sm',
-								color: resendMessage.startsWith('エラー') ? 'red.600' : 'green.600',
-								whiteSpace: 'pre-line',
-							})}>
-								{resendMessage}
-							</p>
-						)}
-					</div>
-				)}
-
+				{/* ログイン画面に戻る */}
 				<div className={css({ textAlign: 'center', mt: '4' })}>
 					<button
 						type="button"
@@ -465,12 +503,8 @@ export default function ResetPasswordPage() {
 							color: 'gray.500',
 							textDecoration: 'underline',
 							fontSize: 'xs',
-							_hover: {
-								color: 'gray.600',
-							},
-							_disabled: {
-								cursor: 'not-allowed',
-							},
+							_hover: { color: 'gray.600' },
+							_disabled: { cursor: 'not-allowed' },
 						})}
 					>
 						ログイン画面に戻る
