@@ -15,11 +15,59 @@ export default function ResetPasswordPage() {
 	const [isError, setIsError] = useState(false);
 	const [isValidSession, setIsValidSession] = useState(false);
 	const [isChecking, setIsChecking] = useState(true);
+	const [showResendForm, setShowResendForm] = useState(false);
+	const [resendEmail, setResendEmail] = useState('');
+	const [resendMessage, setResendMessage] = useState('');
+	const [isResending, setIsResending] = useState(false);
 	const supabase = createClient();
+
+	// パスワードリセットメール再送信
+	const handleResend = async (e: React.FormEvent<HTMLFormElement>) => {
+		e.preventDefault();
+		setIsResending(true);
+		setResendMessage('');
+		try {
+			const { error } = await supabase.auth.resetPasswordForEmail(resendEmail, {
+				redirectTo: `${window.location.origin}/reset-password`,
+			});
+			if (error) {
+				setResendMessage(`エラー: ${error.message}`);
+			} else {
+				setResendMessage('パスワードリセットメールを再送信しました。メールをご確認ください。\n※メールのリンクはすぐにタップしてください。');
+			}
+		} catch {
+			setResendMessage('エラーが発生しました。もう一度お試しください。');
+		} finally {
+			setIsResending(false);
+		}
+	};
 
 	useEffect(() => {
 		const checkSession = async () => {
 			try {
+				// 0. Supabaseがerrorパラメータ付きでリダイレクトしてきた場合
+				//    （例: ?error=access_denied&error_code=otp_expired&error_description=...）
+				//    SendGridクリックトラッキング等でOTPが先に消費されると発生
+				const errorParam = searchParams.get('error');
+				const errorCode = searchParams.get('error_code');
+				const errorDescription = searchParams.get('error_description');
+				if (errorParam || errorCode) {
+					console.error('Supabase redirect error:', { errorParam, errorCode, errorDescription });
+					setIsError(true);
+					if (errorCode === 'otp_expired') {
+						setMessage(
+							'パスワードリセットリンクの有効期限が切れています。\nメールのセキュリティスキャン（SendGrid等）によりリンクが先に消費された可能性があります。\n下のフォームからもう一度メールを送信し、届いたらすぐにリンクをタップしてください。',
+						);
+					} else {
+						setMessage(
+							`パスワードリセットに失敗しました: ${errorDescription?.replace(/\+/g, ' ') || errorParam || 'Unknown error'}\n下のフォームからもう一度お試しください。`,
+						);
+					}
+					setShowResendForm(true);
+					setIsChecking(false);
+					return;
+				}
+
 				// 1. 既にセッションがある場合（ミドルウェアがcodeを処理済み → リダイレクトでcode削除済み）
 				const {
 					data: { session },
@@ -42,8 +90,9 @@ export default function ResetPasswordPage() {
 					console.error('Code exchange error:', error);
 					setIsError(true);
 					setMessage(
-						'リンクの有効期限が切れているか、既に使用済みです。パスワードリセットを再度実行してください。',
+						'リンクの有効期限が切れているか、既に使用済みです。\n下のフォームからパスワードリセットを再度実行してください。',
 					);
+					setShowResendForm(true);
 					setIsChecking(false);
 					return;
 				}
@@ -92,10 +141,12 @@ export default function ResetPasswordPage() {
 				setMessage(
 					'無効なリンクです。パスワードリセットを再度実行してください。',
 				);
+				setShowResendForm(true);
 			} catch (err) {
 				console.error('Session check error:', err);
 				setIsError(true);
 				setMessage('エラーが発生しました。パスワードリセットを再度実行してください。');
+				setShowResendForm(true);
 			} finally {
 				setIsChecking(false);
 			}
@@ -218,6 +269,7 @@ export default function ResetPasswordPage() {
 							className={css({
 								fontSize: 'sm',
 								color: isError ? 'red.700' : 'green.700',
+								whiteSpace: 'pre-line',
 							})}
 						>
 							{message}
@@ -328,6 +380,80 @@ export default function ResetPasswordPage() {
 							</button>
 						</div>
 					</form>
+				)}
+
+				{/* パスワードリセット再送信フォーム（エラー時に表示） */}
+				{showResendForm && (
+					<div className={css({
+						mt: '6',
+						p: '6',
+						bg: 'gray.50',
+						borderRadius: 'md',
+						border: '1px solid',
+						borderColor: 'gray.200',
+					})}>
+						<h2 className={css({
+							fontSize: 'md',
+							fontWeight: 'bold',
+							mb: '3',
+							color: 'gray.700',
+						})}>
+							パスワードリセットメールを再送信
+						</h2>
+						<p className={css({
+							fontSize: 'xs',
+							color: 'gray.500',
+							mb: '4',
+							whiteSpace: 'pre-line',
+						})}>
+							{'メールが届いたら、できるだけ早くリンクをタップしてください。\n時間が経つとリンクが無効になる場合があります。'}
+						</p>
+						<form onSubmit={handleResend} className={css({ spaceY: '3' })}>
+							<input
+								type="email"
+								placeholder="メールアドレス"
+								value={resendEmail}
+								onChange={(e) => setResendEmail(e.target.value)}
+								required
+								disabled={isResending}
+								className={css({
+									w: 'full',
+									border: '1px solid',
+									borderColor: 'gray.300',
+									borderRadius: 'md',
+									p: '3',
+									fontSize: 'sm',
+									_focus: { borderColor: 'blue.500', outline: 'none' },
+								})}
+							/>
+							<button
+								type="submit"
+								disabled={isResending}
+								className={css({
+									w: 'full',
+									bg: 'blue.500',
+									color: 'white',
+									py: '2',
+									borderRadius: 'md',
+									fontSize: 'sm',
+									_hover: { bg: 'blue.600' },
+									_disabled: { bg: 'gray.400', cursor: 'not-allowed' },
+								})}
+							>
+								{isResending ? '送信中...' : 'リセットメールを再送信'}
+							</button>
+						</form>
+						{resendMessage && (
+							<p className={css({
+								mt: '3',
+								fontSize: 'sm',
+								color: resendMessage.startsWith('エラー') ? 'red.600' : 'green.600',
+								whiteSpace: 'pre-line',
+							})}>
+								{resendMessage}
+							</p>
+						)}
+					</div>
 				)}
 
 				<div className={css({ textAlign: 'center', mt: '4' })}>
