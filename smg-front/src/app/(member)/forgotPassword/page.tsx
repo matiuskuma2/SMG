@@ -13,7 +13,7 @@ export default function ForgotPasswordPage() {
 
 	const [step, setStep] = useState<Step>('email');
 	const [email, setEmail] = useState('');
-	const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
+	const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '', '', '']);
 	const [password, setPassword] = useState('');
 	const [confirmPassword, setConfirmPassword] = useState('');
 	const [isLoading, setIsLoading] = useState(false);
@@ -36,7 +36,7 @@ export default function ForgotPasswordPage() {
 				setMessage(error.message);
 			} else {
 				setStep('otp');
-				setMessage('確認コードをメールで送信しました。メールに記載された6桁のコードを入力してください。');
+				setMessage('確認コードをメールで送信しました。メールに記載された8桁のコードを入力してください。');
 			}
 		} catch {
 			setIsError(true);
@@ -49,14 +49,14 @@ export default function ForgotPasswordPage() {
 	// OTP入力ハンドラー（6桁の各入力欄）
 	const handleOtpChange = (index: number, value: string) => {
 		if (value.length > 1) {
-			// ペースト対応: 6桁まとめて貼り付け
-			const digits = value.replace(/\D/g, '').slice(0, 6).split('');
+			// ペースト対応: 8桁まとめて貼り付け
+			const digits = value.replace(/\D/g, '').slice(0, 8).split('');
 			const newOtp = [...otpDigits];
 			digits.forEach((d, i) => {
-				if (index + i < 6) newOtp[index + i] = d;
+				if (index + i < 8) newOtp[index + i] = d;
 			});
 			setOtpDigits(newOtp);
-			const nextIndex = Math.min(index + digits.length, 5);
+			const nextIndex = Math.min(index + digits.length, 7);
 			otpRefs.current[nextIndex]?.focus();
 			return;
 		}
@@ -66,7 +66,7 @@ export default function ForgotPasswordPage() {
 		newOtp[index] = value;
 		setOtpDigits(newOtp);
 
-		if (value && index < 5) {
+		if (value && index < 7) {
 			otpRefs.current[index + 1]?.focus();
 		}
 	};
@@ -81,9 +81,9 @@ export default function ForgotPasswordPage() {
 	const handleVerifyOtp = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		const token = otpDigits.join('');
-		if (token.length !== 6) {
+		if (token.length !== 8) {
 			setIsError(true);
-			setMessage('6桁のコードを入力してください。');
+			setMessage('8桁のコードを入力してください。');
 			return;
 		}
 
@@ -121,7 +121,7 @@ export default function ForgotPasswordPage() {
 		setIsLoading(true);
 		setMessage('');
 		setIsError(false);
-		setOtpDigits(['', '', '', '', '', '']);
+		setOtpDigits(['', '', '', '', '', '', '', '']);
 
 		try {
 			const { error } = await supabase.auth.resetPasswordForEmail(email);
@@ -304,7 +304,7 @@ export default function ForgotPasswordPage() {
 									textAlign: 'center',
 								})}
 							>
-								メールに届いた6桁の確認コード
+								メールに届いた8桁の確認コード
 							</label>
 							<div
 								className={css({
@@ -319,16 +319,16 @@ export default function ForgotPasswordPage() {
 										ref={(el) => { otpRefs.current[i] = el; }}
 										type="text"
 										inputMode="numeric"
-										maxLength={6}
+										maxLength={8}
 										value={digit}
 										onChange={(e) => handleOtpChange(i, e.target.value)}
 										onKeyDown={(e) => handleOtpKeyDown(i, e)}
 										disabled={isLoading}
 										className={css({
-											w: '12',
-											h: '14',
+											w: '10',
+											h: '12',
 											textAlign: 'center',
-											fontSize: 'xl',
+											fontSize: 'lg',
 											fontWeight: 'bold',
 											border: '2px solid',
 											borderColor: 'gray.300',
@@ -353,7 +353,7 @@ export default function ForgotPasswordPage() {
 						<div className={css({ textAlign: 'center' })}>
 							<button
 								type="submit"
-								disabled={isLoading || otpDigits.join('').length !== 6}
+								disabled={isLoading || otpDigits.join('').length !== 8}
 								className={css({
 									bg: 'blue.500',
 									color: 'white',
