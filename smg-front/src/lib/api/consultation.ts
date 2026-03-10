@@ -189,7 +189,7 @@ export async function getConsultations(
 			...consultation,
 			instructor: instructorMap.get(consultation.instructor_id) || {
 				user_id: consultation.instructor_id,
-				username: null,
+				username: '講師',
 				created_at: null,
 			},
 		}),
@@ -202,16 +202,6 @@ export async function getConsultationById(
 	id: string,
 ): Promise<ConsultationDetail> {
 	const supabase = createClient();
-
-	// デバッグ用：まず全ての相談データを確認
-	const { data: allConsultations, error: allError } = await supabase
-		.from('mst_consultation')
-		.select('consultation_id, title, deleted_at, is_draft')
-		.eq('is_draft', false)
-		.limit(10);
-
-	console.log('All consultations:', allConsultations);
-	console.log('Looking for ID:', id);
 
 	// 相談情報を取得
 	const { data: consultationData, error: consultationError } = await supabase
@@ -230,11 +220,6 @@ export async function getConsultationById(
 		.eq('consultation_id', id)
 		.eq('is_draft', false);
 
-	console.log('Consultation query result:', {
-		consultationData,
-		consultationError,
-	});
-
 	if (consultationError) {
 		console.error('Supabase error:', consultationError);
 		throw new Error('Failed to fetch consultation detail');
@@ -251,15 +236,17 @@ export async function getConsultationById(
 	}
 
 	// 講師情報を取得
+	// NOTE: mst_user の RLS により、一般会員は is_profile_public=false の講師プロフィールを
+	// 取得できない場合がある。その場合はデフォルト値を使用する。
 	const { data: instructorData, error: instructorError } = await supabase
 		.from('mst_user')
 		.select('user_id, username')
 		.eq('user_id', validConsultation.instructor_id)
-		.single();
+		.maybeSingle();
 
 	if (instructorError) {
 		console.error('Instructor fetch error:', instructorError);
-		throw new Error('Failed to fetch instructor detail');
+		// RLSによりアクセスできない場合はデフォルト値を使用（エラーにしない）
 	}
 
 	// スケジュール情報を取得
@@ -276,7 +263,11 @@ export async function getConsultationById(
 
 	const data = {
 		...validConsultation,
-		instructor: instructorData,
+		instructor: instructorData || {
+			user_id: validConsultation.instructor_id,
+			username: '講師',
+			created_at: null,
+		},
 		schedules: schedulesData || [],
 	};
 
