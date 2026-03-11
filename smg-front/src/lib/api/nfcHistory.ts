@@ -80,7 +80,12 @@ export const fetchNFCExchangeHistory = async (userId: string) => {
 		)
 		.is('deleted_at', null);
 
-	if (userError) throw userError;
+	// ユーザー情報取得エラーの場合もログを出して処理を続行（フォールバック）
+	if (userError) {
+		console.error('NFC交換相手のユーザー情報取得エラー（RLSの可能性）:', userError);
+	}
+
+	const safeUserData = userData || [];
 
 	// 結果を整形
 	const formattedData: NFCExchangeUser[] = Object.values(
@@ -100,23 +105,24 @@ export const fetchNFCExchangeHistory = async (userId: string) => {
 		),
 	)
 		.map((exchange: ExchangeData) => {
+			if (!exchange.created_at) return null;
+
 			const partnerId = exchange.user_id_2; // 交換相手のIDはuser_id_2
-			const userInfo = userData.find((u: UserData) => u.user_id === partnerId);
+			const userInfo = safeUserData.find((u: UserData) => u.user_id === partnerId);
 
-			if (!userInfo || !exchange.created_at) return null;
-
-			const industryName = userInfo.mst_industry
+			// RLSでユーザー情報が取得できなかった場合もデフォルト値で表示
+			const industryName = userInfo?.mst_industry
 				? Array.isArray(userInfo.mst_industry)
 					? userInfo.mst_industry[0]?.industry_name
 					: userInfo.mst_industry.industry_name
 				: null;
 
 			return {
-				id: userInfo.user_id,
-				username: userInfo.username || '名前なし',
-				company_name: userInfo.company_name || '会社名なし',
+				id: userInfo?.user_id || partnerId,
+				username: userInfo?.username || '名前なし',
+				company_name: userInfo?.company_name || '会社名なし',
 				industry_name: industryName || '業種なし',
-				icon: userInfo.icon || '/profile-icon.jpg',
+				icon: userInfo?.icon || '/profile-icon.jpg',
 				exchange_date:
 					new Date(exchange.created_at)
 						.toLocaleDateString('ja-JP', {
@@ -127,9 +133,9 @@ export const fetchNFCExchangeHistory = async (userId: string) => {
 						.replace(/\//g, '年')
 						.replace(/\//g, '月') + '日',
 				created_at: exchange.created_at,
-				is_username_visible: userInfo.is_username_visible || false,
-				is_company_name_visible: userInfo.is_company_name_visible || false,
-				is_industry_id_visible: userInfo.is_industry_id_visible || false,
+				is_username_visible: userInfo?.is_username_visible ?? true,
+				is_company_name_visible: userInfo?.is_company_name_visible ?? true,
+				is_industry_id_visible: userInfo?.is_industry_id_visible ?? true,
 			};
 		})
 		.filter((item): item is NFCExchangeUser => item !== null);
