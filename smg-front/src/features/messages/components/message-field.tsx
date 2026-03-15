@@ -2,7 +2,7 @@
 
 import { css } from '@/styled-system/css';
 import { FormEvent, useRef, useState } from 'react';
-import { MdInsertPhoto, MdSend, MdClose } from 'react-icons/md';
+import { MdAttachFile, MdSend, MdClose } from 'react-icons/md';
 import { sendMessage, createThread } from '@/lib/api/messages';
 import { compressImage, formatFileSize } from '@/lib/utils/image';
 import Image from 'next/image';
@@ -11,11 +11,48 @@ import { MessageFieldProps } from '@/features/messages/components/messages';
 
 type Props = MessageFieldProps;
 
+// 画像ファイルかどうかを判定するヘルパー関数
+const isImageFile = (file: File): boolean => {
+	return file.type.startsWith('image/');
+};
+
+// 許可するファイル形式
+const ACCEPT_TYPES = [
+	'image/*',
+	'application/pdf',
+	'application/vnd.ms-excel',
+	'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+	'application/msword',
+	'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+	'application/vnd.ms-powerpoint',
+	'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+	'text/csv',
+	'text/plain',
+	'.pdf', '.xls', '.xlsx', '.doc', '.docx', '.ppt', '.pptx', '.csv', '.txt',
+].join(',');
+
+// ファイル拡張子からラベルを取得
+const getFileLabel = (file: File): string => {
+	const ext = file.name.split('.').pop()?.toLowerCase() || '';
+	const labels: Record<string, string> = {
+		pdf: 'PDF',
+		xls: 'Excel',
+		xlsx: 'Excel',
+		doc: 'Word',
+		docx: 'Word',
+		ppt: 'PowerPoint',
+		pptx: 'PowerPoint',
+		csv: 'CSV',
+		txt: 'テキスト',
+	};
+	return labels[ext] || ext.toUpperCase();
+};
+
 export const MessageField = ({ threadId, onSent, onThreadCreated }: Props) => {
 	const fileInput = useRef<HTMLInputElement>(null);
 	const [content, setContent] = useState('');
 	const [sending, setSending] = useState(false);
-	const [selectedImages, setSelectedImages] = useState<File[]>([]);
+	const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 	const [previewUrls, setPreviewUrls] = useState<string[]>([]);
 	const [compressing, setCompressing] = useState(false);
 
@@ -34,29 +71,34 @@ export const MessageField = ({ threadId, onSent, onThreadCreated }: Props) => {
 			return;
 		}
 		
-		// プレビューURLを生成（圧縮前の画像でプレビュー用）
-		const newPreviewUrls = files.map(file => URL.createObjectURL(file));
+		// プレビューURLを生成（画像ファイルのみプレビューURL生成）
+		const newPreviewUrls = files.map(file => 
+			isImageFile(file) ? URL.createObjectURL(file) : ''
+		);
 		setPreviewUrls([...previewUrls, ...newPreviewUrls]);
 		
-		// 画像圧縮処理
+		// 画像は圧縮、非画像ファイルはそのまま保存
 		setCompressing(true);
 		try {
-			const compressedImages = await Promise.all(
+			const processedFiles = await Promise.all(
 				files.map(async (file) => {
-					const result = await compressImage(file);
-					console.log(
-						`画像圧縮: ${file.name} - 元サイズ: ${formatFileSize(result.originalSize)}, 圧縮後: ${formatFileSize(result.compressedSize)}, 圧縮率: ${result.compressionRatio}%`
-					);
-					return result.file;
+					// 画像ファイルのみ圧縮
+					if (isImageFile(file)) {
+						const result = await compressImage(file);
+						console.log(
+							`画像圧縮: ${file.name} - 元サイズ: ${formatFileSize(result.originalSize)}, 圧縮後: ${formatFileSize(result.compressedSize)}, 圧縮率: ${result.compressionRatio}%`
+						);
+						return result.file;
+					}
+					// PDF/Excel等はそのまま返す
+					return file;
 				})
 			);
 			
-			// 圧縮された画像を保存
-			setSelectedImages([...selectedImages, ...compressedImages]);
+			setSelectedFiles([...selectedFiles, ...processedFiles]);
 		} catch (error) {
-			console.error('画像圧縮処理中にエラーが発生しました:', error);
-			// エラー時は元の画像をそのまま使用
-			setSelectedImages([...selectedImages, ...files]);
+			console.error('ファイル処理中にエラーが発生しました:', error);
+			setSelectedFiles([...selectedFiles, ...files]);
 		} finally {
 			setCompressing(false);
 		}
@@ -65,24 +107,26 @@ export const MessageField = ({ threadId, onSent, onThreadCreated }: Props) => {
 		e.target.value = '';
 	};
 	
-	const removeImage = (index: number) => {
+	const removeFile = (index: number) => {
 		// プレビューURLを解放
-		URL.revokeObjectURL(previewUrls[index]);
+		if (previewUrls[index]) {
+			URL.revokeObjectURL(previewUrls[index]);
+		}
 		
 		// 配列から削除
-		const newSelectedImages = [...selectedImages];
+		const newSelectedFiles = [...selectedFiles];
 		const newPreviewUrls = [...previewUrls];
-		newSelectedImages.splice(index, 1);
+		newSelectedFiles.splice(index, 1);
 		newPreviewUrls.splice(index, 1);
 		
-		setSelectedImages(newSelectedImages);
+		setSelectedFiles(newSelectedFiles);
 		setPreviewUrls(newPreviewUrls);
 	};
 
 	const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		
-		if ((!content.trim() && selectedImages.length === 0) || sending || compressing) return;
+		if ((!content.trim() && selectedFiles.length === 0) || sending || compressing) return;
 		
 		try {
 			setSending(true);
@@ -100,13 +144,13 @@ export const MessageField = ({ threadId, onSent, onThreadCreated }: Props) => {
 				}
 			}
 			
-			// メッセージを送信（画像も一緒に）
-			await sendMessage(currentThreadId, content || '', selectedImages.length > 0 ? selectedImages : undefined);
+			// メッセージを送信（ファイルも一緒に）
+			await sendMessage(currentThreadId, content || '', selectedFiles.length > 0 ? selectedFiles : undefined);
 			setContent('');
 			
-			// 画像選択とプレビューをクリア
-			setSelectedImages([]);
-			previewUrls.forEach(url => URL.revokeObjectURL(url));
+			// ファイル選択とプレビューをクリア
+			setSelectedFiles([]);
+			previewUrls.forEach(url => { if (url) URL.revokeObjectURL(url); });
 			setPreviewUrls([]);
 			
 			onSent?.();
@@ -123,8 +167,8 @@ export const MessageField = ({ threadId, onSent, onThreadCreated }: Props) => {
 			flexDirection: 'column',
 			gap: '2',
 		})}>
-			{/* 選択した画像のプレビュー */}
-			{previewUrls.length > 0 && (
+			{/* 選択したファイルのプレビュー */}
+			{selectedFiles.length > 0 && (
 				<div className={css({
 					display: 'flex',
 					flexWrap: 'wrap',
@@ -148,23 +192,43 @@ export const MessageField = ({ threadId, onSent, onThreadCreated }: Props) => {
 							justifyContent: 'center',
 							zIndex: 10,
 						})}>
-							画像を圧縮中...
+							処理中...
 						</div>
 					)}
-					{previewUrls.map((url, index) => (
+					{selectedFiles.map((file, index) => (
 						<div key={index} className={css({
 							position: 'relative',
-							width: '80px',
-							height: '80px',
+							width: isImageFile(file) ? '80px' : 'auto',
+							height: isImageFile(file) ? '80px' : 'auto',
 						})}>
-							<Image
-								src={url}
-								alt={`選択した画像 ${index + 1}`}
-								fill
-								quality={100}
-								unoptimized={true}
-								style={{ objectFit: 'cover', borderRadius: '4px' }}
-							/>
+							{isImageFile(file) && previewUrls[index] ? (
+								<Image
+									src={previewUrls[index]}
+									alt={`選択した画像 ${index + 1}`}
+									fill
+									quality={100}
+									unoptimized={true}
+									style={{ objectFit: 'cover', borderRadius: '4px' }}
+								/>
+							) : (
+								<div className={css({
+									display: 'flex',
+									alignItems: 'center',
+									gap: '1',
+									p: '2',
+									bg: 'gray.100',
+									rounded: 'md',
+									fontSize: 'xs',
+									color: 'gray.700',
+									pr: '6',
+								})}>
+									<MdAttachFile size={16} />
+									<span className={css({ maxW: '120px', truncate: true })}>
+										{file.name}
+									</span>
+									<span className={css({ color: 'gray.500' })}>({getFileLabel(file)})</span>
+								</div>
+							)}
 							<button
 								type="button"
 								className={css({
@@ -180,7 +244,7 @@ export const MessageField = ({ threadId, onSent, onThreadCreated }: Props) => {
 									alignItems: 'center',
 									justifyContent: 'center',
 								})}
-								onClick={() => removeImage(index)}
+								onClick={() => removeFile(index)}
 							>
 								<MdClose size={16} />
 							</button>
@@ -203,17 +267,18 @@ export const MessageField = ({ threadId, onSent, onThreadCreated }: Props) => {
 					className={flex({ p: '2', alignItems: 'center' })}
 					onClick={() => fileInput.current?.click()}
 					disabled={sending || compressing}
+					title="ファイルを添付（画像・PDF・Excel・Word等）"
 				>
-					<MdInsertPhoto size={24} color={selectedImages.length > 0 ? "#3f51b5" : "rgba(0,0,0,.6)"} />
-					{selectedImages.length > 0 && (
+					<MdAttachFile size={24} color={selectedFiles.length > 0 ? "#3f51b5" : "rgba(0,0,0,.6)"} />
+					{selectedFiles.length > 0 && (
 						<span className={css({ fontSize: 'xs', color: '#3f51b5', ml: '1' })}>
-							{selectedImages.length}
+							{selectedFiles.length}
 						</span>
 					)}
 				</button>
 				<input
 					type="file"
-					accept="image/*"
+					accept={ACCEPT_TYPES}
 					ref={fileInput}
 					className={css({ display: 'none' })}
 					onChange={handleFileChange}
@@ -235,12 +300,12 @@ export const MessageField = ({ threadId, onSent, onThreadCreated }: Props) => {
 				<button 
 					type="submit" 
 					className={css({ 
-						cursor: (sending || compressing || (!content.trim() && selectedImages.length === 0)) ? 'not-allowed' : 'pointer',
+						cursor: (sending || compressing || (!content.trim() && selectedFiles.length === 0)) ? 'not-allowed' : 'pointer',
 						px: '2', 
 					})}
-					disabled={sending || compressing || (!content.trim() && selectedImages.length === 0)}
+					disabled={sending || compressing || (!content.trim() && selectedFiles.length === 0)}
 				>
-					<MdSend size={24} color={(sending || compressing || (!content.trim() && selectedImages.length === 0)) ? "rgba(0,0,0,.3)" : "#3f51b5"} />
+					<MdSend size={24} color={(sending || compressing || (!content.trim() && selectedFiles.length === 0)) ? "rgba(0,0,0,.3)" : "#3f51b5"} />
 				</button>
 			</form>
 		</div>

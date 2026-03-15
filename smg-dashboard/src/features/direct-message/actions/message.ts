@@ -45,7 +45,7 @@ export const postMessage = async (id: string, content = '') => {
 };
 
 export const postImage = async (
-  image: File,
+  file: File,
   {
     messageId,
     createdAt,
@@ -54,23 +54,27 @@ export const postImage = async (
 ) => {
   const client = createClient();
   const imageId = randomUUID();
-  const extension = image.name.split('.').pop() || 'png';
+  const extension = file.name.split('.').pop() || 'bin';
+  const originalName = file.name;
 
-  // upload image to storage
+  // upload file to storage
   const bucket = client.storage.from('dm_image');
   const uploadResult = await bucket.upload(
     `message_image/${imageId}.${extension}`,
-    image,
+    file,
+    {
+      contentType: file.type,
+    },
   );
 
   if (uploadResult.error)
-    throw new Error(`Failed to upload image: ${uploadResult.error.message}`);
+    throw new Error(`Failed to upload file: ${uploadResult.error.message}`);
 
   const {
     data: { publicUrl },
   } = bucket.getPublicUrl(uploadResult.data.path);
 
-  // register record
+  // register record (image_url stores the file URL regardless of file type)
   const { data, error } = await client.from('trn_dm_message_image').insert({
     image_id: imageId,
     message_id: messageId,

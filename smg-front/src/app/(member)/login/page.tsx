@@ -136,7 +136,13 @@ export default function Login() {
 			}
 
 			router.refresh();
-			window.location.href = '/';
+			// redirectToパラメータがあればそのページに遷移（NFC等から来た場合）
+			const redirectTo = searchParams.get('redirectTo');
+			if (redirectTo && redirectTo.startsWith('/')) {
+				window.location.href = redirectTo;
+			} else {
+				window.location.href = '/';
+			}
 		} catch (err: any) {
 			console.error('ログインエラー:', err);
 			const translatedMessage = translateErrorMessage(err.message || 'ログイン中にエラーが発生しました');

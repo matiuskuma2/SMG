@@ -380,6 +380,8 @@ export async function getEvents(
 	}
 
 	// 開催形式でフィルタリング（オンライン/オフライン）
+	// オンライン判定: event_type が 'オンラインセミナー' OR event_city が 'オンライン'
+	// オフライン判定: 上記のどちらにも該当しないもの
 	if (filters?.formats && filters.formats.length > 0) {
 		// オンラインセミナーのイベントタイプIDを取得
 		const { data: onlineSeminarType, error: typeError } = await supabase
@@ -399,17 +401,25 @@ export async function getEvents(
 			filters.formats.includes('online') &&
 			!filters.formats.includes('offline')
 		) {
-			// オンラインのみ
+			// オンラインのみ: event_type が 'オンラインセミナー' OR event_city が 'オンライン'
 			if (onlineSeminarTypeId) {
-				eventQuery = eventQuery.eq('event_type', onlineSeminarTypeId);
+				eventQuery = eventQuery.or(
+					`event_type.eq.${onlineSeminarTypeId},event_city.eq.オンライン`,
+				);
+			} else {
+				eventQuery = eventQuery.eq('event_city', 'オンライン');
 			}
 		} else if (
 			filters.formats.includes('offline') &&
 			!filters.formats.includes('online')
 		) {
-			// オフラインのみ
+			// オフラインのみ: event_type が 'オンラインセミナー' でない AND event_city が 'オンライン' でない
 			if (onlineSeminarTypeId) {
-				eventQuery = eventQuery.neq('event_type', onlineSeminarTypeId);
+				eventQuery = eventQuery
+					.neq('event_type', onlineSeminarTypeId)
+					.neq('event_city', 'オンライン');
+			} else {
+				eventQuery = eventQuery.neq('event_city', 'オンライン');
 			}
 		}
 		// 両方選択されている場合はフィルタリングしない

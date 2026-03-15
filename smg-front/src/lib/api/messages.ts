@@ -233,7 +233,7 @@ export const sendMessage = async (
 	return message;
 };
 
-// 画像をアップロードする
+// ファイルをアップロードする（画像・PDF・Excel等）
 export const uploadMessageImages = async (
 	messageId: string,
 	files: File[],
@@ -243,19 +243,20 @@ export const uploadMessageImages = async (
 	const supabase = createClient();
 	const uploadedImages: MessageImage[] = [];
 
-	// 各画像をアップロード
+	// 各ファイルをアップロード
 	for (let i = 0; i < files.length; i++) {
 		const file = files[i];
 		const fileExt = file.name.split('.').pop();
 		const fileName = `${messageId}_${i}.${fileExt}`;
 		const filePath = `message_image/${fileName}`;
 
-		// Storageにアップロード
+		// Storageにアップロード（contentTypeを明示的に指定）
 		const { data: uploadData, error: uploadError } = await supabase.storage
 			.from('dm_image')
 			.upload(filePath, file, {
 				cacheControl: '3600',
 				upsert: false,
+				contentType: file.type || 'application/octet-stream',
 			});
 
 		if (uploadError) {

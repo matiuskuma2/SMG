@@ -106,7 +106,8 @@ export async function updateSession(request: NextRequest) {
 
 	const anonymousRoutes = ['/login', '/member/login', '/forgotPassword', '/reset-password', '/signup', '/x7k9m2p'];
 	// プレフィックスマッチが必要なパブリックルート（動的パス対応）
-	const anonymousRoutePrefixes = ['/nfc-profile/'];
+	// 注意: /nfc-profile/ はログイン必須に変更（2026-03-15）
+	const anonymousRoutePrefixes: string[] = [];
 
 	const isAnonymousRoute = (pathname: string) => {
 		if (anonymousRoutes.includes(pathname)) return true;
@@ -143,6 +144,10 @@ export async function updateSession(request: NextRequest) {
 		) {
 			const url = request.nextUrl.clone();
 			url.pathname = '/login';
+			// NFCプロフィール等のページからリダイレクトされた場合、ログイン後に元のページに戻れるようにする
+			if (request.nextUrl.pathname.startsWith('/nfc-profile/')) {
+				url.searchParams.set('redirectTo', request.nextUrl.pathname);
+			}
 			return NextResponse.redirect(url);
 		}
 	}

@@ -7,8 +7,93 @@ import { flex } from '@/styled-system/patterns';
 import { token } from '@/styled-system/tokens';
 import dayjs from 'dayjs';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { GrUpdate } from 'react-icons/gr';
+import { MdFileDownload, MdInsertDriveFile, MdDescription, MdTableChart, MdSlideshow } from 'react-icons/md';
+
+// 画像ファイルかどうかをURLから判定
+const isImageUrl = (url: string): boolean => {
+	const ext = url.split('.').pop()?.toLowerCase() || '';
+	return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'].includes(ext);
+};
+
+// ファイル拡張子からアイコンを取得
+const getFileIcon = (url: string) => {
+	const ext = url.split('.').pop()?.toLowerCase() || '';
+	if (['pdf'].includes(ext)) return <MdDescription size={24} color="#e53e3e" />;
+	if (['xls', 'xlsx', 'csv'].includes(ext)) return <MdTableChart size={24} color="#38a169" />;
+	if (['ppt', 'pptx'].includes(ext)) return <MdSlideshow size={24} color="#dd6b20" />;
+	if (['doc', 'docx', 'txt'].includes(ext)) return <MdDescription size={24} color="#3182ce" />;
+	return <MdInsertDriveFile size={24} color="#718096" />;
+};
+
+// URLからファイル名ラベルを取得
+const getFileName = (url: string): string => {
+	const ext = url.split('.').pop()?.toLowerCase() || '';
+	const extLabel: Record<string, string> = {
+		pdf: 'PDFファイル',
+		xls: 'Excelファイル',
+		xlsx: 'Excelファイル',
+		doc: 'Wordファイル',
+		docx: 'Wordファイル',
+		ppt: 'PowerPointファイル',
+		pptx: 'PowerPointファイル',
+		csv: 'CSVファイル',
+		txt: 'テキストファイル',
+	};
+	return extLabel[ext] || `ファイル (.${ext})`;
+};
+
+// ファイル添付コンポーネント（非画像）
+const FileAttachment = ({ url, isMe }: { url: string; isMe: boolean }) => {
+	const handleDownload = useCallback(async () => {
+		try {
+			const response = await fetch(url);
+			const blob = await response.blob();
+			const blobUrl = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = blobUrl;
+			a.download = url.split('/').pop() || 'file';
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			URL.revokeObjectURL(blobUrl);
+		} catch {
+			window.open(url, '_blank');
+		}
+	}, [url]);
+
+	return (
+		<div
+			onClick={handleDownload}
+			className={css({
+				display: 'flex',
+				alignItems: 'center',
+				gap: '2',
+				p: '3',
+				bg: isMe ? 'blue.50' : 'gray.100',
+				rounded: 'md',
+				cursor: 'pointer',
+				transition: 'background 0.2s',
+				_hover: { bg: isMe ? 'blue.100' : 'gray.200' },
+				minW: '180px',
+				maxW: '280px',
+			})}
+		>
+			<div className={css({ flexShrink: 0 })}>
+				{getFileIcon(url)}
+			</div>
+			<div className={css({ flex: 1, minW: 0 })}>
+				<div className={css({ fontSize: 'sm', fontWeight: 'medium', color: 'gray.800', truncate: true })}>
+					{getFileName(url)}
+				</div>
+			</div>
+			<div className={css({ color: 'gray.500', flexShrink: 0 })}>
+				<MdFileDownload size={18} />
+			</div>
+		</div>
+	);
+};
 
 export const MessageItem = ({
 	isMe = true,
@@ -25,8 +110,12 @@ export const MessageItem = ({
 	const [imageViewOpen, setImageViewOpen] = useState(false);
 	const [selectedImageUrl, setSelectedImageUrl] = useState('');
 
-	// メッセージが空で画像のみかどうかを判定
-	const isOnlyImages = !msg.trim() && images.length > 0;
+	// 画像ファイルと非画像ファイルを分離
+	const imageAttachments = images.filter((d) => isImageUrl(d.image_url));
+	const fileAttachments = images.filter((d) => !isImageUrl(d.image_url));
+
+	// メッセージが空で添付のみかどうかを判定
+	const isOnlyAttachments = !msg.trim() && images.length > 0;
 
 	const openImageView = (url: string) => {
 		setSelectedImageUrl(url);
@@ -67,7 +156,7 @@ export const MessageItem = ({
 					</div>
 				</div>
 			)}
-			{/* メッセージが空でない場合のみ表示（画像の有無に関わらず） */}
+			{/* メッセージが空でない場合のみ表示 */}
 			{msg.trim() && (
 				<div
 					className={flex({
@@ -117,12 +206,13 @@ export const MessageItem = ({
 				</div>
 			)}
 
-			{images.length > 0 && (
+			{/* 画像添付 */}
+			{imageAttachments.length > 0 && (
 				<div
 					className={flex({
 						flexWrap: 'wrap',
 						gap: '2',
-						mt: isOnlyImages ? '3' : '0',
+						mt: isOnlyAttachments ? '3' : '0',
 						justifyContent: isMe ? 'flex-end' : 'flex-start',
 						alignItems: 'center',
 						maxWidth: '60%',
@@ -130,7 +220,7 @@ export const MessageItem = ({
 						marginRight: isMe ? '0' : 'auto',
 					})}
 				>
-					{images.map((image, index) => (
+					{imageAttachments.map((image, index) => (
 						<div
 							key={image.image_id}
 							className={css({
@@ -150,7 +240,7 @@ export const MessageItem = ({
 								style={{ objectFit: 'cover', borderRadius: '4px' }}
 							/>
 							{/* 画像のみの場合、最初の画像の左下に時刻を表示 */}
-							{isOnlyImages && index === 0 && (
+							{isOnlyAttachments && fileAttachments.length === 0 && index === 0 && (
 								<div
 									className={css({
 										position: 'absolute',
@@ -169,6 +259,40 @@ export const MessageItem = ({
 										<span className={css({ mr: '1' })}>既読</span>
 									)}
 									{dayjs(image.created_at || sendAt).format('HH:mm')}
+								</div>
+							)}
+						</div>
+					))}
+				</div>
+			)}
+
+			{/* ファイル添付（PDF, Excel等） */}
+			{fileAttachments.length > 0 && (
+				<div
+					className={flex({
+						flexDir: 'column',
+						gap: '2',
+						mt: imageAttachments.length > 0 || !msg.trim() ? '2' : '0',
+						alignItems: isMe ? 'flex-end' : 'flex-start',
+					})}
+				>
+					{fileAttachments.map((file, index) => (
+						<div key={file.image_id} className={css({ position: 'relative' })}>
+							<FileAttachment url={file.image_url} isMe={isMe} />
+							{/* 添付ファイルのみの場合、最後のファイルの下に時刻を表示 */}
+							{isOnlyAttachments && imageAttachments.length === 0 && index === fileAttachments.length - 1 && (
+								<div
+									className={css({
+										fontSize: 'xs',
+										color: 'gray.600',
+										mt: '0.5',
+										textAlign: isMe ? 'right' : 'left',
+									})}
+								>
+									{isMe && isOpen && (
+										<span className={css({ mr: '1' })}>既読</span>
+									)}
+									{dayjs(file.created_at || sendAt).format('HH:mm')}
 								</div>
 							)}
 						</div>

@@ -1,16 +1,44 @@
 'use client';
 
 import type { DmMessage } from '@/features/direct-message/hooks/use-messages';
+import { isImageFile } from '@/features/direct-message/lib/image';
 import { css } from '@/styled-system/css';
 import { Flex } from '@/styled-system/jsx';
 import { token } from '@/styled-system/tokens';
 import dayjs from 'dayjs';
 import { useCallback, useState } from 'react';
-import { LuDownload, LuX } from 'react-icons/lu';
+import { LuDownload, LuX, LuFile, LuFileText, LuFileSpreadsheet, LuPresentation } from 'react-icons/lu';
 
 type MessageItemProps = {
   isMe?: boolean;
   msg: DmMessage;
+};
+
+const getFileIcon = (url: string) => {
+  const ext = url.split('.').pop()?.toLowerCase() || '';
+  if (['pdf'].includes(ext)) return <LuFileText size={24} />;
+  if (['xls', 'xlsx', 'csv'].includes(ext)) return <LuFileSpreadsheet size={24} />;
+  if (['ppt', 'pptx'].includes(ext)) return <LuPresentation size={24} />;
+  if (['doc', 'docx', 'txt'].includes(ext)) return <LuFileText size={24} />;
+  return <LuFile size={24} />;
+};
+
+const getFileName = (url: string) => {
+  const path = url.split('/').pop() || 'file';
+  // UUIDプレフィックスを除去してファイル名を短縮表示
+  const ext = path.split('.').pop()?.toLowerCase() || '';
+  const extLabel: Record<string, string> = {
+    pdf: 'PDF',
+    xls: 'Excel',
+    xlsx: 'Excel',
+    doc: 'Word',
+    docx: 'Word',
+    ppt: 'PowerPoint',
+    pptx: 'PowerPoint',
+    csv: 'CSV',
+    txt: 'テキスト',
+  };
+  return extLabel[ext] ? `${extLabel[ext]}ファイル` : `ファイル (.${ext})`;
 };
 
 const ImageModal = ({
@@ -106,8 +134,60 @@ const ImageModal = ({
   );
 };
 
+const FileAttachment = ({ url }: { url: string }) => {
+  const handleDownload = useCallback(async () => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = url.split('/').pop() || 'file';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      window.open(url, '_blank');
+    }
+  }, [url]);
+
+  return (
+    <div
+      onClick={handleDownload}
+      className={css({
+        display: 'flex',
+        alignItems: 'center',
+        gap: '2',
+        p: '3',
+        bg: 'gray.100',
+        rounded: 'md',
+        cursor: 'pointer',
+        transition: 'background 0.2s',
+        _hover: { bg: 'gray.200' },
+        minW: '180px',
+      })}
+    >
+      <div className={css({ color: 'gray.600', flexShrink: 0 })}>
+        {getFileIcon(url)}
+      </div>
+      <div className={css({ flex: 1, minW: 0 })}>
+        <div className={css({ fontSize: 'sm', fontWeight: 'medium', color: 'gray.800', truncate: true })}>
+          {getFileName(url)}
+        </div>
+      </div>
+      <div className={css({ color: 'gray.500', flexShrink: 0 })}>
+        <LuDownload size={16} />
+      </div>
+    </div>
+  );
+};
+
 export const MessageItem = ({ msg }: MessageItemProps) => {
   const [modalImage, setModalImage] = useState<string | null>(null);
+
+  const imageAttachments = msg.images.filter((d) => isImageFile(d.image_url));
+  const fileAttachments = msg.images.filter((d) => !isImageFile(d.image_url));
 
   return (
     <>
@@ -152,7 +232,8 @@ export const MessageItem = ({ msg }: MessageItemProps) => {
             )}
             {msg.images.length > 0 ? (
               <Flex flexDir={'column'} gap={'.5rem'} w={'full'}>
-                {msg.images.map((d) => (
+                {/* 画像ファイル */}
+                {imageAttachments.map((d) => (
                   <img
                     key={d.image_id}
                     src={d.image_url}
@@ -169,6 +250,36 @@ export const MessageItem = ({ msg }: MessageItemProps) => {
                     })}
                   />
                 ))}
+                {/* ファイル添付（PDF, Excel等） */}
+                {fileAttachments.map((d) => (
+                  <FileAttachment key={d.image_id} url={d.image_url} />
+                ))}
+                {/* テキストメッセージがある場合は表示 */}
+                {msg.content && (
+                  <div
+                    className={css({
+                      rounded: 'md',
+                      color: 'white',
+                      p: '2',
+                    })}
+                    style={{
+                      background: msg.isMe ? '#007aff' : token('colors.gray.500'),
+                      borderBottomRightRadius: msg.isMe ? '0' : '8px',
+                      borderBottomLeftRadius: !msg.isMe ? '0' : '8px',
+                    }}
+                  >
+                    <div
+                      className={css({
+                        fontSize: 'md',
+                        textAlign: 'left',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                      })}
+                    >
+                      {msg.content}
+                    </div>
+                  </div>
+                )}
               </Flex>
             ) : (
               <div
