@@ -33,14 +33,14 @@ export const ThreadItem = ({
 }) => {
   // スレッドに紐づくタグ名を取得
   const threadTags = useMemo(() => {
-    const tagIds = (thread as Thread).tagIds || [];
+    const tagIds = (thread as unknown as Thread).tagIds || [];
     if (!allTags || tagIds.length === 0) return [];
     return tagIds
       .map((id) => allTags.find((t) => t.tag_id === id))
       .filter(Boolean) as Array<{ tag_id: string; name: string }>;
   }, [thread, allTags]);
 
-  const isDeleted = (thread as Thread).user?.is_deleted === true;
+  const isDeleted = (thread as unknown as Thread).user?.is_deleted === true;
 
   return (
     <ContextMenu.Root>
