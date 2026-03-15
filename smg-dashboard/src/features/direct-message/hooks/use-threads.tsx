@@ -139,7 +139,7 @@ export const useThreads = () => {
       );
       const thread = await fetchThreadById(id);
       if (thread) {
-        setFetchedThread(thread as Threads[number]);
+        setFetchedThread(thread as unknown as Threads[number]);
       }
     };
     fetchThread();
@@ -204,7 +204,7 @@ export const ThreadProvider = ({
   children,
 }: React.PropsWithChildren<{ value: Threads | Thread[]; total?: number }>) => {
   // サーバー側でソート済みなので、そのまま使用
-  const [threads, setThreads] = useState<Threads>(value as Threads);
+  const [threads, setThreads] = useState<Threads>(value as unknown as Threads);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(initialTotal);
   const [isLoading, setIsLoading] = useState(false);
@@ -217,7 +217,7 @@ export const ThreadProvider = ({
     const offset = (page - 1) * 30;
     const result = await fetchMoreThreads(offset, 30);
     // サーバー側でソート済み
-    setThreads(result.threads as Threads);
+    setThreads(result.threads as unknown as Threads);
     setTotal(result.total);
   }, [page]);
 
@@ -234,7 +234,7 @@ export const ThreadProvider = ({
         const result = await fetchMoreThreads(offset, limit);
 
         // サーバー側でソート済み
-        setThreads(result.threads as Threads);
+        setThreads(result.threads as unknown as Threads);
         setTotal(result.total);
         setPage(newPage);
       } catch (error) {
