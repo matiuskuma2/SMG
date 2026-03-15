@@ -9,6 +9,7 @@ export const fetchUsers = async () => {
     .select(`
       id:user_id,
       username,
+      email,
       icon,
       groups:mst_group (
         id:group_id,
