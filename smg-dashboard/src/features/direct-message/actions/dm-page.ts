@@ -8,9 +8,12 @@ export type Thread = {
   user: {
     user_id: string;
     username: string;
+    email: string | null;
     icon: string | null;
+    is_deleted: boolean;
   };
   labelId: string | null;
+  tagIds: string[];
   latestMessage?: {
     is_read: boolean;
     created_at: string;
@@ -21,25 +24,48 @@ export type Thread = {
   last_sent_at: string | null;
 };
 
-// スレッドに最新メッセージ情報を付与する共通関数
-async function attachLatestMessages(
+// スレッドの生データ型
+type RawThread = {
+  thread_id: string;
+  user: {
+    user_id: string;
+    username: string | null;
+    email: string | null;
+    icon: string | null;
+    deleted_at: string | null;
+  } | null;
+  label: { label_id: string } | null;
+  created_at: string | null;
+  is_admin_read?: boolean | null;
+  last_sent_at?: string | null;
+};
+
+// スレッド取得用の共通SELECTクエリ
+const THREAD_SELECT = `
+  thread_id,
+  user:user_id (user_id, username, email, icon, deleted_at),
+  label:trn_dm_thread_label!left(label_id),
+  created_at,
+  last_sent_at,
+  is_admin_read
+`;
+
+const THREAD_SELECT_INNER = `
+  thread_id,
+  user:user_id!inner (user_id, username, email, icon, deleted_at),
+  label:trn_dm_thread_label!left(label_id),
+  created_at,
+  last_sent_at,
+  is_admin_read
+`;
+
+// スレッドに最新メッセージ情報とタグ情報を付与する共通関数
+async function attachLatestMessagesAndTags(
   client: ReturnType<typeof createClient>,
-  threads: Array<{
-    thread_id: string;
-    user: {
-      user_id: string;
-      username: string | null;
-      icon: string | null;
-    } | null;
-    label: { label_id: string } | null;
-    created_at: string | null;
-    is_admin_read?: boolean | null;
-    last_sent_at?: string | null;
-  }>,
+  threads: RawThread[],
 ): Promise<Thread[]> {
   if (threads.length === 0) return [];
 
-  // 各スレッドのスレッドユーザーIDをマップ化
   const threadUserMap = new Map<string, string>();
   for (const thread of threads) {
     if (thread.user?.user_id) {
@@ -47,33 +73,49 @@ async function attachLatestMessages(
     }
   }
 
-  // 全スレッドのメッセージを取得（created_at降順）
   const threadIds = threads.map((t) => t.thread_id);
-  const { data: allMessages } = await client
-    .from('trn_dm_message')
-    .select('thread_id, user_id, is_read, created_at')
-    .in('thread_id', threadIds)
-    .order('created_at', { ascending: false });
 
-  // 各スレッドの最新メッセージを取得（スレッドユーザーのメッセージのみ、既読フラグ用）
+  // メッセージとタグを並行取得
+  const [messagesResult, tagsResult] = await Promise.all([
+    client
+      .from('trn_dm_message')
+      .select('thread_id, user_id, is_read, created_at')
+      .in('thread_id', threadIds)
+      .order('created_at', { ascending: false }),
+    client
+      .from('trn_dm_thread_tag')
+      .select('thread_id, tag_id')
+      .in('thread_id', threadIds)
+      .is('deleted_at', null),
+  ]);
+
+  const allMessages = messagesResult.data || [];
+  const allTags = tagsResult.data || [];
+
+  // タグマップ作成
+  const tagMap = new Map<string, string[]>();
+  for (const tag of allTags) {
+    if (!tagMap.has(tag.thread_id)) {
+      tagMap.set(tag.thread_id, []);
+    }
+    tagMap.get(tag.thread_id)?.push(tag.tag_id);
+  }
+
   const latestMessageMap = new Map<
     string,
     { is_read: boolean; created_at: string }
   >();
-  // 各スレッドの最新メッセージを取得（全メッセージ、ソート用）
   const allLatestMessageMap = new Map<string, { created_at: string }>();
 
-  for (const msg of allMessages || []) {
+  for (const msg of allMessages) {
     const threadUserId = threadUserMap.get(msg.thread_id);
 
-    // 全メッセージから最新のものを取得（ソート用）
     if (!allLatestMessageMap.has(msg.thread_id)) {
       allLatestMessageMap.set(msg.thread_id, {
         created_at: msg.created_at ?? '',
       });
     }
 
-    // スレッドユーザーのメッセージのみ（既読フラグ用）
     if (msg.user_id === threadUserId && !latestMessageMap.has(msg.thread_id)) {
       latestMessageMap.set(msg.thread_id, {
         is_read: msg.is_read ?? false,
@@ -82,15 +124,17 @@ async function attachLatestMessages(
     }
   }
 
-  // スレッドデータに最新メッセージを付与
   return threads.map((thread) => ({
     thread_id: thread.thread_id,
     user: {
       user_id: thread.user?.user_id ?? '',
       username: thread.user?.username ?? '',
+      email: thread.user?.email ?? null,
       icon: thread.user?.icon ?? null,
+      is_deleted: thread.user?.deleted_at !== null,
     },
     labelId: thread.label?.label_id ?? null,
+    tagIds: tagMap.get(thread.thread_id) || [],
     latestMessage: latestMessageMap.get(thread.thread_id),
     allLatestMessageCreatedAt: allLatestMessageMap.get(thread.thread_id)
       ?.created_at,
@@ -104,13 +148,11 @@ async function attachLatestMessages(
 export async function fetchDmPageData() {
   const client = createClient();
 
-  // 現在のユーザーIDを取得
   const {
     data: { user },
   } = await client.auth.getUser();
   const currentUserId = user?.id ?? '';
 
-  // fetchMoreThreadsを使用して最初の30件を取得
   const { threads, total } = await fetchMoreThreads(0, 30);
 
   // ラベル一覧を取得
@@ -137,34 +179,23 @@ export async function fetchDmPageData() {
     (adminGroupData || []).map((g) => [g.group_id, g.title]),
   );
 
-  // 全ユーザーを取得
+  // 全ユーザーを取得（退会者含む、deleted_atも取得）
   const { data: allUsersData } = await client
     .from('mst_user')
-    .select('user_id, username, icon')
-    .is('deleted_at', null);
+    .select('user_id, username, email, icon, deleted_at');
 
-  // 管理者ユーザーのグループ情報を取得（JOINを使用）
+  // 管理者ユーザーのグループ情報を取得
   const { data: adminUsersWithGroups } = await client
     .from('trn_group_user')
-    .select(
-      `
-      user_id,
-      group_id
-    `,
-    )
+    .select('user_id, group_id')
     .in('group_id', adminGroupIds)
     .is('deleted_at', null);
 
-  // ユーザーIDごとにグループ情報をマッピング
   const groupsByUser = new Map<string, Array<{ id: string; title: string }>>();
-
   for (const record of adminUsersWithGroups || []) {
     if (!record.user_id || !record.group_id) continue;
-
     const groupTitle = adminGroupMap.get(record.group_id);
     if (!groupTitle) continue;
-
-    // グループ情報を追加
     if (!groupsByUser.has(record.user_id)) {
       groupsByUser.set(record.user_id, []);
     }
@@ -174,11 +205,12 @@ export async function fetchDmPageData() {
     });
   }
 
-  // 全ユーザーデータとグループ情報を結合
   const usersWithGroups = (allUsersData || []).map((u) => ({
     id: u.user_id,
     username: u.username,
+    email: u.email,
     icon: u.icon,
+    is_deleted: u.deleted_at !== null,
     groups: groupsByUser.get(u.user_id) || [],
   }));
 
@@ -197,7 +229,6 @@ export async function fetchDmPageData() {
 export async function fetchMoreThreads(offset: number, limit = 30) {
   const client = createClient();
 
-  // is_admin_read = false のスレッド数を取得
   const { count: unreadCount } = await client
     .from('mst_dm_thread')
     .select('*', { count: 'exact', head: true })
@@ -205,91 +236,51 @@ export async function fetchMoreThreads(offset: number, limit = 30) {
 
   const totalUnread = unreadCount ?? 0;
 
-  // 総スレッド数を取得
   const { count: totalCount } = await client
     .from('mst_dm_thread')
     .select('*', { count: 'exact', head: true });
 
   const total = totalCount ?? 0;
 
-  // offset位置に応じてクエリを切り替え
-  let threadsData: Array<{
-    thread_id: string;
-    user: {
-      user_id: string;
-      username: string | null;
-      icon: string | null;
-    } | null;
-    label: { label_id: string } | null;
-    created_at: string | null;
-    last_sent_at: string | null;
-  }> = [];
+  let threadsData: RawThread[] = [];
 
   if (offset < totalUnread) {
-    // 未読スレッドの範囲から開始
     const { data: unreadData } = await client
       .from('mst_dm_thread')
-      .select(
-        `
-        thread_id,
-        user:user_id (user_id, username, icon),
-        label:trn_dm_thread_label!left(label_id),
-        created_at,
-        last_sent_at,
-        is_admin_read
-      `,
-      )
+      .select(THREAD_SELECT)
       .eq('is_admin_read', false)
       .order('last_sent_at', { ascending: false, nullsFirst: false })
       .range(offset, offset + limit - 1);
 
-    threadsData = unreadData || [];
+    threadsData = (unreadData || []) as unknown as RawThread[];
 
-    // 未読だけでlimit件に満たない場合、既読から追加取得
     const remainingCount = limit - threadsData.length;
     if (remainingCount > 0 && offset + threadsData.length >= totalUnread) {
       const { data: readData } = await client
         .from('mst_dm_thread')
-        .select(
-          `
-          thread_id,
-          user:user_id (user_id, username, icon),
-          label:trn_dm_thread_label!left(label_id),
-          created_at,
-          last_sent_at,
-          is_admin_read
-        `,
-        )
+        .select(THREAD_SELECT)
         .eq('is_admin_read', true)
         .order('last_sent_at', { ascending: false, nullsFirst: false })
         .range(0, remainingCount - 1);
 
-      threadsData = [...threadsData, ...(readData || [])];
+      threadsData = [
+        ...threadsData,
+        ...((readData || []) as unknown as RawThread[]),
+      ];
     }
   } else if (offset < total) {
-    // 完全に既読スレッドの範囲
     const readOffset = offset - totalUnread;
     const { data } = await client
       .from('mst_dm_thread')
-      .select(
-        `
-        thread_id,
-        user:user_id (user_id, username, icon),
-        label:trn_dm_thread_label!left(label_id),
-        created_at,
-        last_sent_at,
-        is_admin_read
-      `,
-      )
+      .select(THREAD_SELECT)
       .eq('is_admin_read', true)
       .order('last_sent_at', { ascending: false, nullsFirst: false })
       .range(readOffset, readOffset + limit - 1);
 
-    threadsData = data || [];
+    threadsData = (data || []) as unknown as RawThread[];
   }
 
-  // スレッドに最新メッセージを付与
-  const threads = await attachLatestMessages(client, threadsData);
+  const threads = await attachLatestMessagesAndTags(client, threadsData);
 
   return {
     threads,
@@ -298,59 +289,111 @@ export async function fetchMoreThreads(offset: number, limit = 30) {
   };
 }
 
-// ユーザー名で検索して全てのスレッドを取得
-export async function searchThreadsByUsername(username: string) {
+// ユーザー名またはメールアドレスで検索して全てのスレッドを取得
+export async function searchThreadsByUsername(query: string) {
   const client = createClient();
 
-  // 検索文字列が空の場合は最初のページを返す
-  if (!username.trim()) {
+  if (!query.trim()) {
     return fetchMoreThreads(0, 30);
   }
 
-  const searchLower = username.toLowerCase();
+  const searchLower = query.toLowerCase();
 
-  // 未読スレッド(is_admin_read=false)を検索
-  const { data: unreadThreadsData, error: unreadError } = await client
-    .from('mst_dm_thread')
-    .select(
-      `
-      thread_id,
-      user:user_id!inner (user_id, username, icon),
-      label:trn_dm_thread_label!left(label_id),
-      created_at,
-      last_sent_at,
-      is_admin_read
-    `,
-    )
-    .eq('is_admin_read', false)
-    .ilike('user_id.username', `%${searchLower}%`)
-    .order('last_sent_at', { ascending: false, nullsFirst: false });
+  // ユーザー名 OR メールアドレスで検索
+  // Supabaseのilike は一つのカラムにしか使えないので、まずユーザー名で検索し、次にメールで検索して結合
+  const [unreadByName, readByName, unreadByEmail, readByEmail] =
+    await Promise.all([
+      client
+        .from('mst_dm_thread')
+        .select(THREAD_SELECT_INNER)
+        .eq('is_admin_read', false)
+        .ilike('user_id.username', `%${searchLower}%`)
+        .order('last_sent_at', { ascending: false, nullsFirst: false }),
+      client
+        .from('mst_dm_thread')
+        .select(THREAD_SELECT_INNER)
+        .eq('is_admin_read', true)
+        .ilike('user_id.username', `%${searchLower}%`)
+        .order('last_sent_at', { ascending: false, nullsFirst: false }),
+      client
+        .from('mst_dm_thread')
+        .select(THREAD_SELECT_INNER)
+        .eq('is_admin_read', false)
+        .ilike('user_id.email', `%${searchLower}%`)
+        .order('last_sent_at', { ascending: false, nullsFirst: false }),
+      client
+        .from('mst_dm_thread')
+        .select(THREAD_SELECT_INNER)
+        .eq('is_admin_read', true)
+        .ilike('user_id.email', `%${searchLower}%`)
+        .order('last_sent_at', { ascending: false, nullsFirst: false }),
+    ]);
 
-  // 既読スレッド(is_admin_read=true)を検索
-  const { data: readThreadsData, error: readError } = await client
-    .from('mst_dm_thread')
-    .select(
-      `
-      thread_id,
-      user:user_id!inner (user_id, username, icon),
-      label:trn_dm_thread_label!left(label_id),
-      created_at,
-      last_sent_at,
-      is_admin_read
-    `,
-    )
-    .eq('is_admin_read', true)
-    .ilike('user_id.username', `%${searchLower}%`)
-    .order('last_sent_at', { ascending: false, nullsFirst: false });
+  // 重複排除して結合（未読優先）
+  const seen = new Set<string>();
+  const allThreadsData: RawThread[] = [];
 
-  // 未読 + 既読を結合
+  for (const data of [
+    unreadByName.data,
+    unreadByEmail.data,
+    readByName.data,
+    readByEmail.data,
+  ]) {
+    for (const thread of (data || []) as unknown as RawThread[]) {
+      if (!seen.has(thread.thread_id)) {
+        seen.add(thread.thread_id);
+        allThreadsData.push(thread);
+      }
+    }
+  }
+
+  const threads = await attachLatestMessagesAndTags(client, allThreadsData);
+
+  return {
+    threads,
+    hasMore: false,
+    total: threads.length,
+  };
+}
+
+// タグIDでスレッドを絞り込み検索
+export async function searchThreadsByTagId(tagId: string) {
+  const client = createClient();
+
+  // タグに紐づくスレッドIDを取得
+  const { data: tagThreads } = await client
+    .from('trn_dm_thread_tag')
+    .select('thread_id')
+    .eq('tag_id', tagId)
+    .is('deleted_at', null);
+
+  const threadIds = (tagThreads || []).map((t) => t.thread_id);
+  if (threadIds.length === 0) {
+    return { threads: [], hasMore: false, total: 0 };
+  }
+
+  // 未読 + 既読を取得
+  const [unreadResult, readResult] = await Promise.all([
+    client
+      .from('mst_dm_thread')
+      .select(THREAD_SELECT)
+      .eq('is_admin_read', false)
+      .in('thread_id', threadIds)
+      .order('last_sent_at', { ascending: false, nullsFirst: false }),
+    client
+      .from('mst_dm_thread')
+      .select(THREAD_SELECT)
+      .eq('is_admin_read', true)
+      .in('thread_id', threadIds)
+      .order('last_sent_at', { ascending: false, nullsFirst: false }),
+  ]);
+
   const allThreadsData = [
-    ...(unreadThreadsData || []),
-    ...(readThreadsData || []),
+    ...((unreadResult.data || []) as unknown as RawThread[]),
+    ...((readResult.data || []) as unknown as RawThread[]),
   ];
 
-  // スレッドに最新メッセージを付与
-  const threads = await attachLatestMessages(client, allThreadsData);
+  const threads = await attachLatestMessagesAndTags(client, allThreadsData);
 
   return {
     threads,
@@ -365,26 +408,19 @@ export async function fetchThreadById(threadId: string) {
 
   const { data: threadData } = await client
     .from('mst_dm_thread')
-    .select(
-      `
-      thread_id,
-      user:user_id!inner (user_id, username, icon),
-      label:trn_dm_thread_label!left(label_id),
-      created_at,
-      last_sent_at,
-      is_admin_read
-    `,
-    )
+    .select(THREAD_SELECT_INNER)
     .eq('thread_id', threadId)
     .single();
 
   if (!threadData) return null;
 
-  const threads = await attachLatestMessages(client, [threadData]);
+  const threads = await attachLatestMessagesAndTags(client, [
+    threadData as unknown as RawThread,
+  ]);
   return threads[0] || null;
 }
 
-// 既存のgetCurrentUserも残しておく（他で使われている可能性があるため）
+// 既存のgetCurrentUserも残しておく
 export const getCurrentUser = async () => {
   const client = createClient();
   const { data } = await client.auth.getUser();

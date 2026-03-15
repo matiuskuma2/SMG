@@ -6,6 +6,7 @@ import dayjs from 'dayjs';
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { MessageItem } from './item';
 
+import type { Thread } from '@/features/direct-message/actions/dm-page';
 import { useMessageInfiniteScroll } from '@/features/direct-message/hooks/use-infinite-scroll';
 import { useMessages } from '@/features/direct-message/hooks/use-messages';
 import Link from 'next/link';
@@ -20,6 +21,8 @@ export const MessageView = () => {
 
   if (!currentThread) return null;
 
+  const isDeleted = (currentThread as unknown as Thread).user?.is_deleted === true;
+
   return (
     <>
       <Grid gridTemplateRows={'auto 1fr'} px={'4'} height="100%" minH={0}>
@@ -32,15 +35,32 @@ export const MessageView = () => {
             borderBottom: '1px solid #d0d0d0',
           })}
         >
-          <Link
-            href={'#'}
-            className={css({
-              fontSize: 'large',
-              fontWeight: 'bold',
-            })}
-          >
-            {currentThread.user.username}
-          </Link>
+          <Flex alignItems={'center'} gap={'2'}>
+            <Link
+              href={'#'}
+              className={css({
+                fontSize: 'large',
+                fontWeight: 'bold',
+              })}
+            >
+              {currentThread.user.username}
+            </Link>
+            {isDeleted && (
+              <span
+                className={css({
+                  fontSize: 'xs',
+                  px: '1.5',
+                  py: '0.5',
+                  bg: 'red.100',
+                  color: 'red.700',
+                  rounded: 'sm',
+                  fontWeight: 'medium',
+                })}
+              >
+                退会済
+              </span>
+            )}
+          </Flex>
           <StatusSelector />
         </Flex>
         <Flex flexDir={'column'} height="100%" minH={0} gap={'1rem'}>
@@ -64,7 +84,7 @@ const Messages = () => {
   const groupEntiries = useMemo(() => {
     const groupBy = Object.groupBy(messages, ({ created_at }) => {
       const date = dayjs(created_at);
-      return date.format('YYYY/M/DD');
+      return date.format('YYYY/MM/DD');
     });
     return Object.entries(groupBy).toReversed();
   }, [messages]);
@@ -134,12 +154,18 @@ const MessageField = () => {
   const onChange = (e: React.ChangeEvent<HTMLTextAreaElement>) =>
     setMessage(e.target.value);
 
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!message) return;
 
     await postText(message);
     setMessage('');
+    // テキストエリアの高さをリセット
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
   };
 
   return (
@@ -155,17 +181,25 @@ const MessageField = () => {
     >
       <FileInputBtn onUpload={postImages} />
       <textarea
+        ref={textareaRef}
         value={message}
         name="content"
         placeholder="メッセージを入力"
+        rows={1}
         className={css({
           p: '2',
           resize: 'none',
-          // Note: this property is not work some browser like firefox or safari.
-          fieldSizing: 'content',
+          maxH: '150px',
+          overflowY: 'auto',
           _focus: { outline: 'none' },
+          lineHeight: '1.5',
         })}
         onChange={onChange}
+        onInput={(e) => {
+          const target = e.currentTarget;
+          target.style.height = 'auto';
+          target.style.height = `${Math.min(target.scrollHeight, 150)}px`;
+        }}
       />
       <button
         type="submit"

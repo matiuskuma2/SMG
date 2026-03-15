@@ -35,6 +35,12 @@ export const postMessage = async (id: string, content = '') => {
     throw new Error(`Failed to insert message: ${error.message}`);
   }
 
+  // メッセージ送信時にスレッドのlast_sent_atを更新（最新が上に来るように）
+  await client
+    .from('mst_dm_thread')
+    .update({ last_sent_at: createdAt, updated_at: createdAt })
+    .eq('thread_id', id);
+
   return data;
 };
 

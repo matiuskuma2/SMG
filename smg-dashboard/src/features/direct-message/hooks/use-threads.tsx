@@ -47,35 +47,36 @@ export const useThreads = () => {
   const setSelected = useCallback(
     async (value?: string) => {
       if (!value) return false;
-
-      await updateReadStatus(value, true);
-
-      // 既読にしたスレッドのis_admin_readをtrueに更新し、ソートし直す
-      setThreads((prev) => {
-        const updated = prev.map((thread) =>
-          thread.thread_id === value
-            ? { ...thread, is_admin_read: true }
-            : thread,
-        );
-
-        // 未読優先、その後last_sent_at降順でソート
-        return updated.sort((a, b) => {
-          // 未読優先
-          if (a.is_admin_read !== b.is_admin_read) {
-            return a.is_admin_read ? 1 : -1;
-          }
-
-          // last_sent_atで降順ソート（nullは最後）
-          const aDate = a.last_sent_at || '';
-          const bDate = b.last_sent_at || '';
-          return bDate.localeCompare(aDate);
-        });
-      });
-
+      // 未読マークは手動でのみ切り替え（スレッド選択時に自動既読にしない）
       update(value);
       return true;
     },
-    [update, setThreads],
+    [update],
+  );
+
+  const markAsRead = useCallback(
+    async (value: string) => {
+      const result = await updateReadStatus(value, true);
+      if (result) {
+        setThreads((prev) => {
+          const updated = prev.map((thread) =>
+            thread.thread_id === value
+              ? { ...thread, is_admin_read: true }
+              : thread,
+          );
+          return updated.sort((a, b) => {
+            if (a.is_admin_read !== b.is_admin_read) {
+              return a.is_admin_read ? 1 : -1;
+            }
+            const aDate = a.last_sent_at || '';
+            const bDate = b.last_sent_at || '';
+            return bDate.localeCompare(aDate);
+          });
+        });
+      }
+      return result;
+    },
+    [setThreads],
   );
 
   const revertToUnread = useCallback(
@@ -157,6 +158,7 @@ export const useThreads = () => {
     currentThread,
     refetch,
     setSelected,
+    markAsRead,
     createNewThread,
     revertToUnread,
     changePage,

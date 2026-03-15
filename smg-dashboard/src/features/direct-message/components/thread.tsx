@@ -2,7 +2,7 @@
 
 import { css } from '@/styled-system/css';
 import { Flex, Grid, Stack } from '@/styled-system/jsx';
-import { formatIsoDate } from '@/utils/date';
+import dayjs from 'dayjs';
 import { ContextMenu } from 'radix-ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LuCheck, LuMessageCircle, LuSearch } from 'react-icons/lu';
@@ -10,6 +10,7 @@ import { TbMessageCirclePlus } from 'react-icons/tb';
 import type { Thread } from '../actions/dm-page';
 import { type Threads, isThreadUnread, useThreads } from '../hooks/use-threads';
 import { useUsers } from '../hooks/use-users';
+import { useTags } from '../hooks/use-tags';
 import { FormPrompt } from './dialog';
 import { Input } from './form';
 import { StatusTag } from './labels';
@@ -20,91 +21,156 @@ export const ThreadItem = ({
   thread,
   onSelect,
   onRevert,
+  onMarkRead,
+  allTags,
 }: {
   active?: boolean;
   thread: Threads[number];
   onSelect?: (value: string) => void;
   onRevert?: (value: string) => void;
-}) => (
-  <ContextMenu.Root>
-    <ContextMenu.Trigger>
-      <li
-        className={`thread-item ${css({
-          px: '4',
-          cursor: 'pointer',
-          _selected: { bg: 'gray.100' },
-        })}`}
-        aria-selected={active}
-      >
-        <Grid
-          gridTemplateColumns={'auto 1fr'}
-          alignItems={'center'}
-          onClick={() => !active && onSelect?.(thread.thread_id)}
+  onMarkRead?: (value: string) => void;
+  allTags?: Array<{ tag_id: string; name: string }>;
+}) => {
+  // スレッドに紐づくタグ名を取得
+  const threadTags = useMemo(() => {
+    const tagIds = (thread as Thread).tagIds || [];
+    if (!allTags || tagIds.length === 0) return [];
+    return tagIds
+      .map((id) => allTags.find((t) => t.tag_id === id))
+      .filter(Boolean) as Array<{ tag_id: string; name: string }>;
+  }, [thread, allTags]);
+
+  const isDeleted = (thread as Thread).user?.is_deleted === true;
+
+  return (
+    <ContextMenu.Root>
+      <ContextMenu.Trigger>
+        <li
+          className={`thread-item ${css({
+            px: '4',
+            cursor: 'pointer',
+            _selected: { bg: 'gray.100' },
+          })}`}
+          aria-selected={active}
         >
-          <div className={css({ pos: 'relative' })}>
-            <DmAvator user={thread.user} />
-            {isThreadUnread(thread) && (
-              <div
-                className={css({
-                  w: '2.5',
-                  h: '2.5',
-                  top: '-1.5',
-                  right: '-1',
-                  pos: 'absolute',
-                  bg: 'red.500',
-                  rounded: 'full',
-                })}
-              />
-            )}
-          </div>
-          <Flex
-            py={'4'}
-            justify={'space-between'}
-            borderBottom={'1px solid #e0e0e0'}
-            fontSize={'sm'}
+          <Grid
+            gridTemplateColumns={'auto 1fr'}
+            alignItems={'center'}
+            onClick={() => !active && onSelect?.(thread.thread_id)}
           >
-            <Stack gap={0.5}>
-              <div className={css({ fontSize: 'large' })}>
-                {thread.user.username}
-              </div>
-              {(() => {
-                const threadWithLatest = thread as typeof thread & {
-                  allLatestMessageCreatedAt?: string;
-                };
-                const displayDate =
-                  threadWithLatest.allLatestMessageCreatedAt ||
-                  thread.latestMessage?.created_at;
-                return displayDate ? (
-                  <div className={css({ fontSize: 'xs', color: 'gray.500' })}>
-                    {formatIsoDate(displayDate)}
-                  </div>
-                ) : null;
-              })()}
-            </Stack>
-            <StatusTag tagId={thread.labelId ?? '0'} />
-          </Flex>
-        </Grid>
-      </li>
-    </ContextMenu.Trigger>
-    <ContextMenu.Portal>
-      <ContextMenu.Content
-        className={css({
-          bg: 'white',
-          border: '1px solid',
-          borderColor: 'zinc.400',
-          color: 'zinc.700',
-          rounded: 'sm',
-        })}
-      >
-        <ContextMenu.Item asChild className={css({ p: '2', outline: 'none' })}>
-          <button type="button" onClick={() => onRevert?.(thread.thread_id)}>
-            未読としてマークする
-          </button>
-        </ContextMenu.Item>
-      </ContextMenu.Content>
-    </ContextMenu.Portal>
-  </ContextMenu.Root>
-);
+            <div className={css({ pos: 'relative' })}>
+              <DmAvator user={thread.user} />
+              {isThreadUnread(thread) && (
+                <div
+                  className={css({
+                    w: '2.5',
+                    h: '2.5',
+                    top: '-1.5',
+                    right: '-1',
+                    pos: 'absolute',
+                    bg: 'red.500',
+                    rounded: 'full',
+                  })}
+                />
+              )}
+            </div>
+            <Flex
+              py={'3'}
+              justify={'space-between'}
+              borderBottom={'1px solid #e0e0e0'}
+              fontSize={'sm'}
+            >
+              <Stack gap={0.5} minW={0} flex={1}>
+                <div className={css({ display: 'flex', alignItems: 'center', gap: '1.5' })}>
+                  <span className={css({ fontSize: 'large', lineClamp: 1 })}>
+                    {thread.user.username}
+                  </span>
+                  {isDeleted && (
+                    <span
+                      className={css({
+                        fontSize: 'xs',
+                        px: '1.5',
+                        py: '0.5',
+                        bg: 'red.100',
+                        color: 'red.700',
+                        rounded: 'sm',
+                        fontWeight: 'medium',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0,
+                      })}
+                    >
+                      退会済
+                    </span>
+                  )}
+                </div>
+                {/* タグ表示 */}
+                {threadTags.length > 0 && (
+                  <Flex gap={'1'} flexWrap={'wrap'}>
+                    {threadTags.map((tag) => (
+                      <span
+                        key={tag.tag_id}
+                        className={css({
+                          fontSize: '2xs',
+                          px: '1.5',
+                          py: '0.5',
+                          bg: 'blue.50',
+                          color: 'blue.700',
+                          rounded: 'sm',
+                          lineClamp: 1,
+                        })}
+                      >
+                        {tag.name}
+                      </span>
+                    ))}
+                  </Flex>
+                )}
+                {(() => {
+                  const threadWithLatest = thread as typeof thread & {
+                    allLatestMessageCreatedAt?: string;
+                  };
+                  const displayDate =
+                    threadWithLatest.allLatestMessageCreatedAt ||
+                    thread.latestMessage?.created_at;
+                  return displayDate ? (
+                    <div className={css({ fontSize: 'xs', color: 'gray.500' })}>
+                      {dayjs(displayDate).format('YYYY/MM/DD HH:mm')}
+                    </div>
+                  ) : null;
+                })()}
+              </Stack>
+              <StatusTag tagId={thread.labelId ?? '0'} />
+            </Flex>
+          </Grid>
+        </li>
+      </ContextMenu.Trigger>
+      <ContextMenu.Portal>
+        <ContextMenu.Content
+          className={css({
+            bg: 'white',
+            border: '1px solid',
+            borderColor: 'zinc.400',
+            color: 'zinc.700',
+            rounded: 'sm',
+          })}
+        >
+          {isThreadUnread(thread) ? (
+            <ContextMenu.Item asChild className={css({ p: '2', outline: 'none', cursor: 'pointer', _hover: { bg: 'gray.100' } })}>
+              <button type="button" onClick={() => onMarkRead?.(thread.thread_id)}>
+                既読にする
+              </button>
+            </ContextMenu.Item>
+          ) : (
+            <ContextMenu.Item asChild className={css({ p: '2', outline: 'none', cursor: 'pointer', _hover: { bg: 'gray.100' } })}>
+              <button type="button" onClick={() => onRevert?.(thread.thread_id)}>
+                未読としてマークする
+              </button>
+            </ContextMenu.Item>
+          )}
+        </ContextMenu.Content>
+      </ContextMenu.Portal>
+    </ContextMenu.Root>
+  );
+};
 
 export const ThreadMenu = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -112,10 +178,12 @@ export const ThreadMenu = () => {
   const [search, setSearch] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<Thread[]>([]);
+  const [selectedTagId, setSelectedTagId] = useState<string>('');
   const {
     threads,
     selected,
     setSelected,
+    markAsRead,
     revertToUnread,
     refetch,
     changePage,
@@ -124,9 +192,12 @@ export const ThreadMenu = () => {
     limit,
     isLoading,
   } = useThreads();
+  const { tags } = useTags();
 
-  // 検索実行
+  // テキスト検索
   useEffect(() => {
+    if (selectedTagId) return; // タグ絞り込み中はテキスト検索しない
+
     const searchThreads = async () => {
       if (!search.trim()) {
         setSearchResults([]);
@@ -149,21 +220,44 @@ export const ThreadMenu = () => {
       }
     };
 
-    // デバウンス処理
     const timeoutId = setTimeout(searchThreads, 300);
     return () => clearTimeout(timeoutId);
-  }, [search]);
+  }, [search, selectedTagId]);
 
-  // 表示するスレッドリスト（検索中は検索結果、それ以外は通常のスレッド）
-  const displayThreads = search.trim()
+  // タグ絞り込み
+  useEffect(() => {
+    if (!selectedTagId) {
+      if (!search.trim()) setSearchResults([]);
+      return;
+    }
+
+    const filterByTag = async () => {
+      setIsSearching(true);
+      try {
+        const { searchThreadsByTagId } = await import(
+          '@/features/direct-message/actions/dm-page'
+        );
+        const result = await searchThreadsByTagId(selectedTagId);
+        setSearchResults(result.threads);
+      } catch (error) {
+        console.error('Error filtering by tag:', error);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    filterByTag();
+  }, [selectedTagId]);
+
+  const isFiltering = search.trim() || selectedTagId;
+  const displayThreads = isFiltering
     ? (searchResults as unknown as Threads)
     : threads;
 
-  // ページ変更時にリストを一番上にスクロール
   const handleChangePage = useCallback(
     async (newPage: number) => {
       await changePage(newPage);
-      // ページ変更後にスクロール位置をリセット
       if (listRef.current) {
         listRef.current.scrollTop = 0;
       }
@@ -178,6 +272,14 @@ export const ThreadMenu = () => {
     [setSelected],
   );
 
+  const onMarkRead = useCallback(
+    async (value: string) => {
+      const result = await markAsRead(value);
+      if (result) refetch();
+    },
+    [markAsRead, refetch],
+  );
+
   const onRevert = useCallback(
     async (value: string) => {
       const result = await revertToUnread(value);
@@ -190,8 +292,8 @@ export const ThreadMenu = () => {
 
   return (
     <Grid
-      gridTemplateRows={'auto auto 1fr auto'}
-      rowGap={'3'}
+      gridTemplateRows={'auto auto auto 1fr auto'}
+      rowGap={'2'}
       pt={6}
       w={'300px'}
       minH={0}
@@ -201,11 +303,65 @@ export const ThreadMenu = () => {
         <CreateThreadDialog />
       </Flex>
       <Input
-        placeholder="ユーザー名で検索"
+        placeholder="ユーザー名 / メールアドレスで検索"
         value={search}
-        onChange={(e) => setSearch(e.target.value)}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          if (e.target.value.trim()) setSelectedTagId('');
+        }}
         py={3}
       />
+      {/* タグ絞り込み */}
+      <Flex gap={'1'} flexWrap={'wrap'} px={'1'}>
+        {selectedTagId && (
+          <button
+            type="button"
+            onClick={() => setSelectedTagId('')}
+            className={css({
+              fontSize: '2xs',
+              px: '1.5',
+              py: '0.5',
+              bg: 'gray.200',
+              color: 'gray.600',
+              rounded: 'sm',
+              cursor: 'pointer',
+              _hover: { bg: 'gray.300' },
+            })}
+          >
+            ✕ クリア
+          </button>
+        )}
+        {tags.map((tag) => (
+          <button
+            key={tag.tag_id}
+            type="button"
+            onClick={() => {
+              setSelectedTagId((prev) => (prev === tag.tag_id ? '' : tag.tag_id));
+              setSearch('');
+            }}
+            className={css({
+              fontSize: '2xs',
+              px: '1.5',
+              py: '0.5',
+              rounded: 'sm',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+            })}
+            style={{
+              background:
+                selectedTagId === tag.tag_id
+                  ? 'var(--colors-blue-600)'
+                  : 'var(--colors-blue-50)',
+              color:
+                selectedTagId === tag.tag_id
+                  ? 'white'
+                  : 'var(--colors-blue-700)',
+            }}
+          >
+            {tag.name}
+          </button>
+        ))}
+      </Flex>
       <div
         ref={listRef}
         className={css({
@@ -223,7 +379,9 @@ export const ThreadMenu = () => {
               thread={thread}
               onSelect={onSelect}
               onRevert={onRevert}
+              onMarkRead={onMarkRead}
               active={thread.thread_id === selected}
+              allTags={tags}
             />
           ))}
           {(isLoading || isSearching) && (
@@ -237,7 +395,7 @@ export const ThreadMenu = () => {
               読み込み中...
             </div>
           )}
-          {search.trim() && !isSearching && displayThreads.length === 0 && (
+          {isFiltering && !isSearching && displayThreads.length === 0 && (
             <div
               className={css({
                 p: '4',
@@ -250,7 +408,7 @@ export const ThreadMenu = () => {
           )}
         </ul>
       </div>
-      {!search.trim() && (
+      {!isFiltering && (
         <Flex justifyContent="center" alignItems="center" gap="4" py="2">
           <button
             type="button"
@@ -308,7 +466,8 @@ const CreateThreadDialog = () => {
   const filtered = member.filter(
     (d) =>
       !existUserOnThread.includes(d.id) &&
-      d.username?.toLowerCase().includes(search.toLowerCase()),
+      (d.username?.toLowerCase().includes(search.toLowerCase()) ||
+        d.email?.toLowerCase().includes(search.toLowerCase())),
   );
 
   const onSave = async () => {
@@ -370,7 +529,7 @@ const CreateThreadDialog = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               pl={10}
-              placeholder="ユーザー名で検索"
+              placeholder="ユーザー名 / メールアドレスで検索"
             />
           </Stack>
         </Stack>
@@ -395,10 +554,27 @@ const CreateThreadDialog = () => {
               <Stack
                 flex={1}
                 minW={0}
-                color={selected === d.id ? 'blue.800' : 'gray.800'}
-                fontWeight="medium"
+                gap={0}
               >
-                {d.username}
+                <span
+                  className={css({
+                    color: selected === d.id ? 'blue.800' : 'gray.800',
+                    fontWeight: 'medium',
+                  })}
+                >
+                  {d.username}
+                </span>
+                {d.email && (
+                  <span
+                    className={css({
+                      fontSize: 'xs',
+                      color: 'gray.500',
+                      lineClamp: 1,
+                    })}
+                  >
+                    {d.email}
+                  </span>
+                )}
               </Stack>
               {selected === d.id && (
                 <LuCheck

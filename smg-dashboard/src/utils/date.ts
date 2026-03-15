@@ -61,14 +61,15 @@ export function formatIsoDate(isoString: string): string {
   if (!isoString) return '';
 
   const date = new Date(isoString);
-  return date.toLocaleDateString('ja-JP', {
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
+  const y = date.toLocaleDateString('ja-JP', { year: 'numeric', timeZone: 'Asia/Tokyo' }).replace('年', '');
+  const m = String(date.toLocaleDateString('ja-JP', { month: 'numeric', timeZone: 'Asia/Tokyo' }).replace('月', '')).padStart(2, '0');
+  const d = String(date.toLocaleDateString('ja-JP', { day: 'numeric', timeZone: 'Asia/Tokyo' }).replace('日', '')).padStart(2, '0');
+  const time = date.toLocaleTimeString('ja-JP', {
     hour: '2-digit',
     minute: '2-digit',
     timeZone: 'Asia/Tokyo',
   });
+  return `${y}/${m}/${d} ${time}`;
 }
 
 /**
