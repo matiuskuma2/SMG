@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { createClient } from '@/lib/supabase-server';
+import { createAdminClient } from '@/lib/supabase-admin';
 import { headers } from 'next/headers';
 import {
   createEventApplicationNotification,
@@ -70,7 +70,8 @@ export async function POST(request: Request) {
         );
       }
 
-      const supabase = createClient();
+      // WebhookはユーザーのCookieがないため、service_role keyを使用してRLSをバイパス
+      const supabase = createAdminClient();
 
       // selectedTypesを先にパースする（データ保存の分岐に必要）
       let parsedSelectedTypes: string[] = [];
