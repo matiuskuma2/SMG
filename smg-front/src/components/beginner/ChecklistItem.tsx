@@ -1,5 +1,5 @@
 import { css } from '@/styled-system/css';
-import { Download, FileText, Loader2 } from 'lucide-react';
+import { Check, Download, FileText, Link as LinkIcon, Loader2 } from 'lucide-react';
 import React, { useState } from 'react';
 import { FaChevronDown } from 'react-icons/fa';
 import { GuideFileType, GuideItemType, GuideVideoType } from './types';
@@ -98,6 +98,26 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
 }) => {
   const { isInstructor, loading: isInstructorLoading } = useIsInstructor();
   const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(new Set());
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyLink = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const url = `${window.location.origin}/beginner?item=${item.guide_item_id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      const textArea = document.createElement('textarea');
+      textArea.value = url;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   const handleEdit = () => {
     const dashboardUrl = process.env.NEXT_PUBLIC_DASHBOARD_URL || 'https://smg-dashboard.vercel.app';
@@ -198,6 +218,33 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
             <div className={css({ flex: 1 })}>
               <span className={css({ fontWeight: 'medium' })}>{item.title}</span>
             </div>
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              title={copied ? 'コピーしました' : 'この項目のURLをコピー'}
+              className={css({
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '32px',
+                height: '32px',
+                borderRadius: 'md',
+                bg: copied ? 'green.50' : 'gray.50',
+                color: copied ? 'green.600' : 'gray.400',
+                border: '1px solid',
+                borderColor: copied ? 'green.200' : 'gray.200',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                flexShrink: 0,
+                mr: '2',
+                _hover: {
+                  bg: copied ? 'green.100' : 'gray.100',
+                  color: copied ? 'green.700' : 'gray.600',
+                },
+              })}
+            >
+              {copied ? <Check size={14} /> : <LinkIcon size={14} />}
+            </button>
             {!isInstructorLoading && isInstructor && (
               <button
                 onClick={(e) => {
