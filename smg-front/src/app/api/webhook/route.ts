@@ -71,50 +71,16 @@ export async function POST(request: Request) {
       }
 
       const supabase = createClient();
-      // 事前重複Webhook判定: キャンセル済レコードを除外して同一 payment_intent が保存されているか確認
-      const { data: priorAttendee, error: priorError } = await supabase
-        .from('trn_gather_attendee')
-        .select('stripe_payment_intent_id, deleted_at')
-        .eq('event_id', event_id)
-        .eq('user_id', userId)
-        .is('deleted_at', null)
-        .single();
-      if (priorError && priorError.code !== 'PGRST116') {
-        console.error('priorAttendee取得エラー:', priorError);
+
+      // selectedTypesを先にパースする（データ保存の分岐に必要）
+      let parsedSelectedTypes: string[] = [];
+      try {
+        parsedSelectedTypes = selectedTypes ? JSON.parse(selectedTypes) : [];
+      } catch (parseError) {
+        console.error('selectedTypesのパースに失敗しました:', parseError);
       }
-      const isDuplicateWebhook = priorAttendee?.stripe_payment_intent_id === session.payment_intent;
-      // ログ出力：priorAttendee とセッション、重複判定結果
-      console.log(`priorAttendee.stripe_payment_intent_id=${priorAttendee?.stripe_payment_intent_id}, session.payment_intent=${session.payment_intent}, isDuplicateWebhook=${isDuplicateWebhook}`);
-      
-      // 支払い情報をデータベースに保存
-      console.log('データベース更新を試行:', {
-        event_id: event_id,
-        user_id: userId,
-        stripe_payment_intent_id: session.payment_intent,
-        payment_amount: session.amount_total
-      });
+      console.log('パース済みselectedTypes:', parsedSelectedTypes);
 
-      const { error: updateError } = await supabase
-        .from('trn_gather_attendee')
-        .upsert({
-          event_id: event_id,
-          user_id: userId,
-          stripe_payment_intent_id: session.payment_intent as string,
-          stripe_payment_status: 'succeeded',
-          payment_amount: session.amount_total || 0,
-          payment_date: new Date().toISOString(),
-        });
-
-      if (updateError) {
-        console.error('データベース更新エラー:', updateError);
-        return NextResponse.json(
-          { error: 'データベースの更新に失敗しました', details: updateError },
-          { status: 500 }
-        );
-      }
-
-      console.log('データベース更新成功');
-      
       // イベント名を取得して通知作成で使用
       const { data: eventData } = await supabase
         .from('mst_event')
@@ -123,13 +89,90 @@ export async function POST(request: Request) {
         .single();
       
       const eventName = eventData?.event_name || 'イベント';
-      
-      // selectedTypesが文字列として保存されているため、JSONとしてパース
-      let parsedSelectedTypes: string[] = [];
-      try {
-        parsedSelectedTypes = selectedTypes ? JSON.parse(selectedTypes) : [];
-      } catch (parseError) {
-        console.error('selectedTypesのパースに失敗しました:', parseError);
+
+      // 重複Webhook判定: payment_intentが既に保存されているかチェック
+      // trn_gather_attendee または trn_event_attendee のいずれかで判定
+      let isDuplicateWebhook = false;
+      if (parsedSelectedTypes.includes('Networking')) {
+        const { data: priorGather } = await supabase
+          .from('trn_gather_attendee')
+          .select('stripe_payment_intent_id')
+          .eq('event_id', event_id)
+          .eq('user_id', userId)
+          .is('deleted_at', null)
+          .eq('stripe_payment_intent_id', session.payment_intent as string)
+          .maybeSingle();
+        isDuplicateWebhook = !!priorGather;
+      } else if (parsedSelectedTypes.includes('Event')) {
+        const { data: priorEvent } = await supabase
+          .from('trn_event_attendee')
+          .select('event_id')
+          .eq('event_id', event_id)
+          .eq('user_id', userId)
+          .is('deleted_at', null)
+          .maybeSingle();
+        isDuplicateWebhook = !!priorEvent;
+      }
+      console.log(`isDuplicateWebhook=${isDuplicateWebhook}, payment_intent=${session.payment_intent}`);
+
+      // === データベースへの保存（重複でも必ず実行 - upsertなので安全） ===
+
+      // 懇親会（Networking）が選択されている場合のみ trn_gather_attendee に保存
+      if (parsedSelectedTypes.includes('Networking')) {
+        console.log('懇親会が選択されているため、gather_attendeeテーブルを更新します');
+        const { error: gatherError } = await supabase
+          .from('trn_gather_attendee')
+          .upsert({
+            event_id: event_id,
+            user_id: userId,
+            stripe_payment_intent_id: session.payment_intent as string,
+            stripe_payment_status: 'succeeded',
+            payment_amount: session.amount_total || 0,
+            payment_date: new Date().toISOString(),
+            deleted_at: null,
+          });
+
+        if (gatherError) {
+          console.error('懇親会データベース更新エラー:', gatherError);
+          // エラーでも処理を続行（他のテーブルの更新を妨げない）
+        } else {
+          console.log('懇親会データベース更新成功');
+        }
+      }
+
+      // イベント参加（Event）が選択されている場合 trn_event_attendee に保存
+      if (parsedSelectedTypes.includes('Event')) {
+        console.log('イベント参加が選択されているため、event_attendeeテーブルを更新します');
+        const { error: eventError } = await supabase
+          .from('trn_event_attendee')
+          .upsert({
+            event_id: event_id,
+            user_id: userId,
+            is_offline: participationType ? participationType === 'Offline' : true,
+            deleted_at: null,
+          });
+        if (eventError) {
+          console.error('イベント参加データベース更新エラー:', eventError);
+        } else {
+          console.log('イベント参加データベース更新成功');
+        }
+      }
+
+      // 個別相談（Consultation）が選択されている場合 trn_consultation_attendee に保存
+      if (parsedSelectedTypes.includes('Consultation')) {
+        console.log('個別相談が選択されているため、consultation_attendeeテーブルを更新します');
+        const { error: consultationError } = await supabase
+          .from('trn_consultation_attendee')
+          .upsert({
+            event_id: event_id,
+            user_id: userId,
+            deleted_at: null,
+          });
+        if (consultationError) {
+          console.error('個別相談データベース更新エラー:', consultationError);
+        } else {
+          console.log('個別相談データベース更新成功');
+        }
       }
 
       // 質問回答を保存（重複処理チェックに関係なく実行）
@@ -141,9 +184,6 @@ export async function POST(request: Request) {
             .map(([questionId, answer]) => ({ question_id: questionId, answer }));
 
           if (answersToSave.length > 0) {
-            // saveEventQuestionAnswersをWebhook用に修正する必要があるため、直接データベースに保存
-            const supabase = createClient();
-            
             // 既存の回答を削除（論理削除）
             const { error: deleteError } = await supabase
               .from('trn_event_question_answer')
@@ -177,6 +217,7 @@ export async function POST(request: Request) {
         console.error('質問回答の処理に失敗:', questionError);
       }
 
+      // === 通知処理（重複Webhookの場合はスキップ） ===
       if (isDuplicateWebhook) {
         console.log(
           `Webhook duplicate: payment_intent=${session.payment_intent} 通知処理をスキップします`
@@ -192,50 +233,13 @@ export async function POST(request: Request) {
           }
         }
 
-        // イベント参加情報も更新
-        if (parsedSelectedTypes.includes('Event')) {
-          console.log('イベント参加が選択されているため、event_attendeeテーブルを更新します');
-          const { error: eventError } = await supabase
-            .from('trn_event_attendee')
-            .upsert({
-              event_id: event_id,
-              user_id: userId,
-              is_offline: participationType ? participationType === 'Offline' : true,
-              deleted_at: null,
-            });
-          if (eventError) {
-            console.error('イベント参加データベース更新エラー:', eventError);
-          } else {
-            console.log('イベント参加データベース更新成功');
-            // Networkng（懇親会）選択時はイベント通知をスキップ
-            if (!parsedSelectedTypes.includes('Networking')) {
-              try {
-                await createEventApplicationNotification(userId, event_id, eventName);
-                console.log('イベント申し込み通知が作成されました');
-              } catch (notificationError) {
-                console.error('イベント通知作成に失敗しました:', notificationError);
-              }
-            } else {
-              console.log('懇親会決済の際はイベント通知をスキップします');
-            }
-          }
-        }
-
-        // 個別相談が選択されていれば、consultation_attendeeテーブルを更新
-        // 通知はoff-line-consulations/[id]ページのフォーム送信時に作成される
-        if (parsedSelectedTypes.includes('Consultation')) {
-          console.log('個別相談が選択されているため、consultation_attendeeテーブルを更新します');
-          const { error: consultationError } = await supabase
-            .from('trn_consultation_attendee')
-            .upsert({
-              event_id: event_id,
-              user_id: userId,
-              deleted_at: null,
-            });
-          if (consultationError) {
-            console.error('個別相談データベース更新エラー:', consultationError);
-          } else {
-            console.log('個別相談データベース更新成功');
+        // イベント通知（Networking選択時はスキップ）
+        if (parsedSelectedTypes.includes('Event') && !parsedSelectedTypes.includes('Networking')) {
+          try {
+            await createEventApplicationNotification(userId, event_id, eventName);
+            console.log('イベント申し込み通知が作成されました');
+          } catch (notificationError) {
+            console.error('イベント通知作成に失敗しました:', notificationError);
           }
         }
       }
