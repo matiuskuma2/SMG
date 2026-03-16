@@ -48,6 +48,20 @@ export const fetchThreads = async () => {
 export const updateThreadLabel = async (threadId: string, labelId: string) => {
   const client = createClient();
   const updatedAt = dayjs().toISOString();
+
+  // 「ステータスなし」(label_id === '0') の場合はレコードを削除
+  if (labelId === '0') {
+    const { error } = await client
+      .from('trn_dm_thread_label')
+      .delete()
+      .eq('thread_id', threadId);
+    if (error) {
+      console.error('Error deleting thread label:', error);
+      return false;
+    }
+    return true;
+  }
+
   const { error } = await client.from('trn_dm_thread_label').upsert(
     {
       label_id: labelId,

@@ -402,6 +402,132 @@ export async function searchThreadsByTagId(tagId: string) {
   };
 }
 
+// ステータス（ラベルID）でスレッドを絞り込み検索
+// labelIds: 選択されたラベルIDの配列。'0'は「ステータスなし」（ラベルレコードが存在しないスレッド）
+export async function searchThreadsByLabelIds(labelIds: string[]) {
+  const client = createClient();
+
+  if (labelIds.length === 0) {
+    return fetchMoreThreads(0, 30);
+  }
+
+  const includeNoStatus = labelIds.includes('0');
+  const actualLabelIds = labelIds.filter((id) => id !== '0');
+
+  let allThreadsData: RawThread[] = [];
+
+  // 実際のラベルIDでの絞り込み
+  if (actualLabelIds.length > 0) {
+    // trn_dm_thread_labelにラベルIDが含まれるスレッドを取得
+    const { data: labelThreads } = await client
+      .from('trn_dm_thread_label')
+      .select('thread_id')
+      .in('label_id', actualLabelIds);
+
+    const threadIdsWithLabel = (labelThreads || []).map((t) => t.thread_id);
+
+    if (threadIdsWithLabel.length > 0) {
+      const [unreadResult, readResult] = await Promise.all([
+        client
+          .from('mst_dm_thread')
+          .select(THREAD_SELECT)
+          .eq('is_admin_read', false)
+          .in('thread_id', threadIdsWithLabel)
+          .order('last_sent_at', { ascending: false, nullsFirst: false }),
+        client
+          .from('mst_dm_thread')
+          .select(THREAD_SELECT)
+          .eq('is_admin_read', true)
+          .in('thread_id', threadIdsWithLabel)
+          .order('last_sent_at', { ascending: false, nullsFirst: false }),
+      ]);
+
+      allThreadsData = [
+        ...((unreadResult.data || []) as unknown as RawThread[]),
+        ...((readResult.data || []) as unknown as RawThread[]),
+      ];
+    }
+  }
+
+  // 「ステータスなし」が選択されている場合：trn_dm_thread_labelにレコードがないスレッドを取得
+  if (includeNoStatus) {
+    // ラベルが割り当てられているスレッドIDの一覧を取得
+    const { data: allLabeledThreads } = await client
+      .from('trn_dm_thread_label')
+      .select('thread_id');
+
+    const labeledThreadIds = (allLabeledThreads || []).map((t) => t.thread_id);
+
+    // ラベルが割り当てられていないスレッドを取得
+    let noStatusQuery = client
+      .from('mst_dm_thread')
+      .select(THREAD_SELECT)
+      .order('last_sent_at', { ascending: false, nullsFirst: false });
+
+    if (labeledThreadIds.length > 0) {
+      // Supabaseのnot.in演算子を使う
+      const [unreadNoStatus, readNoStatus] = await Promise.all([
+        client
+          .from('mst_dm_thread')
+          .select(THREAD_SELECT)
+          .eq('is_admin_read', false)
+          .not('thread_id', 'in', `(${labeledThreadIds.join(',')})`)
+          .order('last_sent_at', { ascending: false, nullsFirst: false }),
+        client
+          .from('mst_dm_thread')
+          .select(THREAD_SELECT)
+          .eq('is_admin_read', true)
+          .not('thread_id', 'in', `(${labeledThreadIds.join(',')})`)
+          .order('last_sent_at', { ascending: false, nullsFirst: false }),
+      ]);
+
+      allThreadsData = [
+        ...allThreadsData,
+        ...((unreadNoStatus.data || []) as unknown as RawThread[]),
+        ...((readNoStatus.data || []) as unknown as RawThread[]),
+      ];
+    } else {
+      // 全てのスレッドがラベルなし
+      const [unreadAll, readAll] = await Promise.all([
+        client
+          .from('mst_dm_thread')
+          .select(THREAD_SELECT)
+          .eq('is_admin_read', false)
+          .order('last_sent_at', { ascending: false, nullsFirst: false }),
+        client
+          .from('mst_dm_thread')
+          .select(THREAD_SELECT)
+          .eq('is_admin_read', true)
+          .order('last_sent_at', { ascending: false, nullsFirst: false }),
+      ]);
+
+      allThreadsData = [
+        ...allThreadsData,
+        ...((unreadAll.data || []) as unknown as RawThread[]),
+        ...((readAll.data || []) as unknown as RawThread[]),
+      ];
+    }
+  }
+
+  // 重複排除
+  const seen = new Set<string>();
+  const uniqueThreads: RawThread[] = [];
+  for (const thread of allThreadsData) {
+    if (!seen.has(thread.thread_id)) {
+      seen.add(thread.thread_id);
+      uniqueThreads.push(thread);
+    }
+  }
+
+  const threads = await attachLatestMessagesAndTags(client, uniqueThreads);
+
+  return {
+    threads,
+    hasMore: false,
+    total: threads.length,
+  };
+}
+
 // 個別のスレッドを取得
 export async function fetchThreadById(threadId: string) {
   const client = createClient();
