@@ -187,11 +187,11 @@ async function findMissingRecords(
     if (!userCache.has(s.userId)) {
       const { data: userData } = await supabase
         .from('mst_user')
-        .select('user_name, email')
+        .select('username, email')
         .eq('user_id', s.userId)
         .maybeSingle();
       userCache.set(s.userId, {
-        name: userData?.user_name || '不明',
+        name: userData?.username || '不明',
         email: userData?.email || '不明',
       });
     }
