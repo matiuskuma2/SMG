@@ -42,44 +42,13 @@ const QuestionEditPage = ({ params }: { params: { id: string } }) => {
 					return;
 				}
 
-				// 講師グループのIDを取得
-				const { data: groupData, error: groupError } = await supabase
-					.from('mst_group')
-					.select('group_id')
-					.eq('title', '講師_質問受付グループ')
-					.is('deleted_at', null)
-					.single();
-				if (groupError) {
-					console.error('講師グループの取得に失敗しました:', groupError);
-					return;
-				}
-
-				// 講師ユーザーの情報を取得（JOINを使用してクエリを最適化）
-				const { data: instructorsData, error: instructorsError } =
-					await supabase
-						.from('trn_group_user')
-						.select(`
-						user_id,
-						mst_user!inner (
-							user_id,
-							username
-						)
-					`)
-						.eq('group_id', groupData.group_id)
-						.is('deleted_at', null)
-						.is('mst_user.deleted_at', null);
-				if (instructorsError) {
-					console.error('講師データの取得に失敗しました:', instructorsError);
-					return;
-				}
-
-				if (instructorsData) {
-					setInstructors(
-						instructorsData.map((item) => ({
-							id: item.mst_user.user_id,
-							username: item.mst_user.username,
-						})),
-					);
+				// 講師一覧をサーバーサイドAPIから取得（RLSバイパス）
+				const res = await fetch('/api/question-instructors');
+				if (res.ok) {
+					const data: Instructor[] = await res.json();
+					setInstructors(data);
+				} else {
+					console.error('講師データの取得に失敗しました:', res.status);
 				} // 質問データの取得 - question_idを使用
 				const { data: questionData, error: questionError } = await supabase
 					.from('trn_question')
