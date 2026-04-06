@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase';
 import { createTextSummary } from '@/lib/utils/html';
+import { uuidToStableId } from '@/lib/api/notice';
 
 /**
  * Supabaseのクエリで使用する特殊文字をエスケープする
@@ -339,7 +340,7 @@ export async function searchAll(
 					return noticeVisibleIds.includes(notice.notice_id);
 				})
 				.forEach((notice) => {
-					const noticeIntId = Number.parseInt(notice.notice_id, 16) % 1000000;
+					const noticeIntId = uuidToStableId(notice.notice_id);
 					allResults.push({
 						id: notice.notice_id,
 						name: notice.title,

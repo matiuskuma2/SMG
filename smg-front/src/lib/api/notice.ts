@@ -2,6 +2,20 @@ import type { NoticeFile } from '@/components/notice/types';
 import { createClient } from '@/lib/supabase';
 
 /**
+ * UUIDからより衝突しにくい数値IDを生成する
+ * UUIDの複数セクションを使って衝突確率を下げる
+ */
+export function uuidToStableId(uuid: string): number {
+	// UUIDのハイフンを除去して16進文字列として処理
+	const hex = uuid.replace(/-/g, '');
+	// 先頭8文字と末尾8文字の両方を使い、XORで結合して衝突を減らす
+	const part1 = Number.parseInt(hex.substring(0, 8), 16);
+	const part2 = Number.parseInt(hex.substring(hex.length - 8), 16);
+	// XOR結合して正の整数を返す（JavaScriptの安全な整数範囲内）
+	return Math.abs(part1 ^ part2);
+}
+
+/**
  * お知らせ情報の型定義（Supabaseの型を拡張）
  */
 export type NoticeListItem = {
@@ -174,9 +188,12 @@ export async function getNotices(
 	}
 
 	// ソート条件の適用
-	let query = baseQuery.order('publish_start_at', {
-		ascending: sortOption === 'date_asc',
-	});
+	// 副次キーにnotice_idを追加し、同一publish_start_atでもページネーションが安定するようにする
+	let query = baseQuery
+		.order('publish_start_at', {
+			ascending: sortOption === 'date_asc',
+		})
+		.order('notice_id', { ascending: true });
 
 	// ページネーションを適用（Supabaseの.range()を使用）
 	if (page !== undefined && pageSize !== undefined) {
@@ -233,7 +250,7 @@ export async function getNotices(
 
 	// APIの形式に変換
 	const notices = paginatedData.map((item: any) => ({
-		id: Number.parseInt(item.notice_id, 16) % 1000000,
+		id: uuidToStableId(item.notice_id),
 		noticeId: item.notice_id, // UUID形式の元のIDを保持
 		date: item.publish_start_at ? formatDate(item.publish_start_at) : '未設定',
 		title: item.title,
@@ -278,7 +295,7 @@ export async function getNoticeByIntId(
 
 	// noticeIntIdと一致するお知らせを検索
 	const targetNotice = data.find((notice) => {
-		const intId = Number.parseInt(notice.notice_id, 16) % 1000000;
+		const intId = uuidToStableId(notice.notice_id);
 		return intId === noticeIntId;
 	});
 
