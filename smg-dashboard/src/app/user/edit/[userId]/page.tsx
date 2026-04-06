@@ -122,6 +122,28 @@ export default function UserEditPage({
 
   return (
     <div>
+      {/* 参加記録管理へのリンク */}
+      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '12px 12px 0' }}>
+        <a
+          href={`/user/${userId}/attendance`}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '8px 16px',
+            backgroundColor: '#f0f9ff',
+            border: '1px solid #bae6fd',
+            borderRadius: '6px',
+            color: '#0369a1',
+            fontSize: '14px',
+            fontWeight: '500',
+            textDecoration: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          参加記録を管理 →
+        </a>
+      </div>
       <UserForm
         isEditing={true}
         initialData={userData}
