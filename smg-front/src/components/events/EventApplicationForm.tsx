@@ -45,6 +45,7 @@ const EventApplicationForm: React.FC<EventApplicationFormProps> = ({
   const [gatherCapacity, setGatherCapacity] = useState<number>(0);
   const [consultationCapacity, setConsultationCapacity] = useState<number>(0);
   const [eventParticipants, setEventParticipants] = useState<number>(0);
+  const [totalEventParticipants, setTotalEventParticipants] = useState<number>(0);
   const [gatherParticipants, setGatherParticipants] = useState<number>(0);
   const [consultationParticipants, setConsultationParticipants] = useState<number>(0);
   const [questionAnswers, setQuestionAnswers] = useState<{ [key: string]: any }>({});
@@ -68,9 +69,10 @@ const EventApplicationForm: React.FC<EventApplicationFormProps> = ({
   console.log('isBookkeeping:', isBookkeeping);
   console.log('selectedTypes:', selectedTypes);
   console.log('participationType:', participationType);
-  console.log('eventParticipants:', eventParticipants);
+  console.log('eventParticipants (offline):', eventParticipants);
+  console.log('totalEventParticipants:', totalEventParticipants);
   console.log('eventCapacity:', eventCapacity);
-  console.log('EventTypeCheckbox disabled条件:', eventParticipants >= eventCapacity);
+  console.log('EventTypeCheckbox disabled条件:', totalEventParticipants >= eventCapacity);
   console.log('=== イベント詳細情報終了 ===');
 
   useEffect(() => {
@@ -130,13 +132,20 @@ const EventApplicationForm: React.FC<EventApplicationFormProps> = ({
         setGatherCapacity(eventData.gather_capacity || 0);
         setConsultationCapacity(eventData.consultation_capacity || 0);
 
-        // 現在の参加者数を取得（オフライン参加者のみ）
-        const [eventCountResult, gatherCountResult, consultationCountResult] = await Promise.all([
+        // 現在の参加者数を取得
+        const [offlineCountResult, totalCountResult, gatherCountResult, consultationCountResult] = await Promise.all([
+          // オフライン参加者数（オフライン定員表示用）
           supabase
             .from('trn_event_attendee')
             .select('*', { count: 'exact', head: true })
             .eq('event_id', event_id)
             .eq('is_offline', true)
+            .is('deleted_at', null),
+          // 全参加者数（オンライン+オフライン、定員チェック用）
+          supabase
+            .from('trn_event_attendee')
+            .select('*', { count: 'exact', head: true })
+            .eq('event_id', event_id)
             .is('deleted_at', null),
           supabase
             .from('trn_gather_attendee')
@@ -150,7 +159,8 @@ const EventApplicationForm: React.FC<EventApplicationFormProps> = ({
             .is('deleted_at', null)
         ]);
 
-        setEventParticipants(eventCountResult.count || 0);
+        setEventParticipants(offlineCountResult.count || 0);
+        setTotalEventParticipants(totalCountResult.count || 0);
         setGatherParticipants(gatherCountResult.count || 0);
         setConsultationParticipants(consultationCountResult.count || 0);
 
@@ -235,33 +245,28 @@ const EventApplicationForm: React.FC<EventApplicationFormProps> = ({
       return;
     }
 
-    // 定員数チェック
+    // 定員数チェック（全参加者数＝オンライン+オフラインでチェック）
     if (isBookkeeping || selectedTypes.includes("Event")) {
-      // オンライン参加が可能なイベントの場合
-      if (isOnlineSeminar || isTokyoRegularMeeting || isBookkeeping) {
-        // オフライン参加の場合のみ定員チェック
-        if (participationType === "Offline") {
-          console.log('定員チェック実行 - オンライン参加可能イベントのオフライン参加');
-          if (eventParticipants >= eventCapacity) {
-            console.log('定員オーバー:', eventParticipants, '>=', eventCapacity);
-            toast({
-              title: "申し込み不可",
-              description: "オフライン参加の定員に達しています",
-              variant: "destructive",
-            });
-            return;
-          }
-        } else {
-          console.log('定員チェックスキップ - オンライン参加可能イベントのオンライン参加');
-        }
-      } else {
-        // オンライン参加が不可能なイベントの場合は常に定員チェック
-        console.log('定員チェック実行 - オンライン参加不可イベント');
+      // まず全参加者数（オンライン+オフライン）で定員チェック
+      console.log('定員チェック実行 - 全参加者数:', totalEventParticipants, '/ 定員:', eventCapacity);
+      if (totalEventParticipants >= eventCapacity) {
+        console.log('定員オーバー（全参加者数）:', totalEventParticipants, '>=', eventCapacity);
+        toast({
+          title: "申し込み不可",
+          description: "イベントの定員に達しています",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // オンライン参加可能なイベントでオフライン参加の場合、オフライン定員もチェック
+      if ((isTokyoRegularMeeting || isBookkeeping) && participationType === "Offline") {
+        console.log('オフライン定員チェック:', eventParticipants, '/ オフライン定員:', eventCapacity);
         if (eventParticipants >= eventCapacity) {
-          console.log('定員オーバー:', eventParticipants, '>=', eventCapacity);
+          console.log('オフライン定員オーバー:', eventParticipants, '>=', eventCapacity);
           toast({
             title: "申し込み不可",
-            description: "イベントの定員に達しています",
+            description: "オフライン参加の定員に達しています。オンライン参加をご検討ください。",
             variant: "destructive",
           });
           return;
@@ -340,15 +345,22 @@ const EventApplicationForm: React.FC<EventApplicationFormProps> = ({
       participationType
     });
 
-    // 申し込み確定前にも定員数の再チェック
+    // 申し込み確定前にも定員数の再チェック（全参加者数で判定）
     try {
       console.log('最終定員チェック開始');
-      const [eventCountResult, gatherCountResult, consultationCountResult] = await Promise.all([
+      const [offlineCountResult, totalCountResult, gatherCountResult, consultationCountResult] = await Promise.all([
+        // オフライン参加者数
         supabase
           .from('trn_event_attendee')
           .select('*', { count: 'exact', head: true })
           .eq('event_id', event_id)
           .eq('is_offline', true)
+          .is('deleted_at', null),
+        // 全参加者数（オンライン+オフライン）
+        supabase
+          .from('trn_event_attendee')
+          .select('*', { count: 'exact', head: true })
+          .eq('event_id', event_id)
           .is('deleted_at', null),
         supabase
           .from('trn_gather_attendee')
@@ -362,12 +374,14 @@ const EventApplicationForm: React.FC<EventApplicationFormProps> = ({
           .is('deleted_at', null)
       ]);
 
-      const currentEventParticipants = eventCountResult.count || 0;
+      const currentOfflineParticipants = offlineCountResult.count || 0;
+      const currentTotalParticipants = totalCountResult.count || 0;
       const currentGatherParticipants = gatherCountResult.count || 0;
       const currentConsultationParticipants = consultationCountResult.count || 0;
 
       console.log('最終定員チェック結果:', {
-        currentEventParticipants,
+        currentOfflineParticipants,
+        currentTotalParticipants,
         eventCapacity,
         currentGatherParticipants,
         gatherCapacity,
@@ -375,34 +389,27 @@ const EventApplicationForm: React.FC<EventApplicationFormProps> = ({
         consultationCapacity
       });
 
-      // 最終定員数チェック
+      // 最終定員数チェック（全参加者数＝オンライン+オフラインでチェック）
       if (isBookkeeping || selectedTypes.includes("Event")) {
-        // オンライン参加が可能なイベントの場合
-        if (isOnlineSeminar || isTokyoRegularMeeting || isBookkeeping) {
-          // オフライン参加の場合のみ定員チェック
-          if (participationType === "Offline") {
-            console.log('最終定員チェック実行 - オンライン参加可能イベントのオフライン参加');
-            if (currentEventParticipants >= eventCapacity) {
-              console.log('最終定員オーバー:', currentEventParticipants, '>=', eventCapacity);
-              toast({
-                title: "申し込み不可",
-                description: "オフライン参加の定員に達しています",
-                variant: "destructive",
-              });
-              setIsSubmitting(false);
-              return;
-            }
-          } else {
-            console.log('最終定員チェックスキップ - オンライン参加可能イベントのオンライン参加');
-          }
-        } else {
-          // オンライン参加が不可能なイベントの場合は常に定員チェック
-          console.log('最終定員チェック実行 - オンライン参加不可イベント');
-          if (currentEventParticipants >= eventCapacity) {
-            console.log('最終定員オーバー:', currentEventParticipants, '>=', eventCapacity);
+        // 全参加者数で定員チェック
+        if (currentTotalParticipants >= eventCapacity) {
+          console.log('最終定員オーバー（全参加者数）:', currentTotalParticipants, '>=', eventCapacity);
+          toast({
+            title: "申し込み不可",
+            description: "イベントの定員に達しています",
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+
+        // オンライン参加可能なイベントでオフライン参加の場合、オフライン定員もチェック
+        if ((isTokyoRegularMeeting || isBookkeeping) && participationType === "Offline") {
+          if (currentOfflineParticipants >= eventCapacity) {
+            console.log('最終オフライン定員オーバー:', currentOfflineParticipants, '>=', eventCapacity);
             toast({
               title: "申し込み不可",
-              description: "イベントの定員に達しています",
+              description: "オフライン参加の定員に達しています。オンライン参加をご検討ください。",
               variant: "destructive",
             });
             setIsSubmitting(false);
@@ -653,15 +660,22 @@ const EventApplicationForm: React.FC<EventApplicationFormProps> = ({
                 fontSize: 'xs',
                 color: 'gray.600'
               })}>
-                {eventParticipants >= eventCapacity ? (
+                {totalEventParticipants >= eventCapacity ? (
                   <div>
+                    <div className={css({ color: 'red.600', fontWeight: 'medium' })}>
+                      定員に達しました ({totalEventParticipants}/{eventCapacity}名)
+                    </div>
+                  </div>
+                ) : eventParticipants >= eventCapacity ? (
+                  <div>
+                    <div>参加者: {totalEventParticipants}/{eventCapacity}名</div>
                     <div>オフライン定員: {eventParticipants}/{eventCapacity}名</div>
                     <div className={css({ color: 'green.600', fontWeight: 'medium', mt: '1' })}>
                       オンライン参加可能
                     </div>
                   </div>
                 ) : (
-                  `${eventParticipants}/${eventCapacity}名`
+                  `${totalEventParticipants}/${eventCapacity}名`
                 )}
               </div>
             </div>
@@ -674,24 +688,22 @@ const EventApplicationForm: React.FC<EventApplicationFormProps> = ({
               checked={selectedTypes.includes("Event")}
               onChange={() => handleTypeChange("Event")}
               disabled={(() => {
-                const shouldDisable = (isOnlineSeminar || isTokyoRegularMeeting) ? false : (eventParticipants >= eventCapacity);
+                // オンライン参加可能なイベント（東京定例会・簿記講座）はオフライン定員のみでdisableしない
+                // ただし全参加者数が定員に達したらdisable
+                const shouldDisable = (isTokyoRegularMeeting)
+                  ? (totalEventParticipants >= eventCapacity)
+                  : (totalEventParticipants >= eventCapacity);
                 console.log('EventTypeCheckbox disabled判定:', {
                   isOnlineSeminar,
                   isTokyoRegularMeeting,
-                  eventParticipants,
+                  totalEventParticipants,
                   eventCapacity,
                   shouldDisable
                 });
                 return shouldDisable;
               })()}
-              participantCount={
-                // オンラインセミナーの場合は定員表示なし
-                isOnlineSeminar ? undefined : eventParticipants
-              }
-              capacity={
-                // オンラインセミナーの場合は定員表示なし
-                isOnlineSeminar ? undefined : eventCapacity
-              }
+              participantCount={totalEventParticipants}
+              capacity={eventCapacity}
             />
           )}
 
@@ -704,7 +716,14 @@ const EventApplicationForm: React.FC<EventApplicationFormProps> = ({
               borderColor: 'gray.200',
               p: '4'
             })}>
-              {eventParticipants >= eventCapacity && (isTokyoRegularMeeting || isBookkeeping) ? (
+              {totalEventParticipants >= eventCapacity ? (
+                <p className={css({
+                  fontSize: 'sm',
+                  fontWeight: 'bold',
+                  mb: '2',
+                  color: 'red.600'
+                })}>定員に達しました</p>
+              ) : eventParticipants >= eventCapacity && (isTokyoRegularMeeting || isBookkeeping) ? (
                 <p className={css({
                   fontSize: 'sm',
                   fontWeight: 'bold',
@@ -762,7 +781,8 @@ const EventApplicationForm: React.FC<EventApplicationFormProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   gap: '2',
-                  cursor: 'pointer'
+                  cursor: totalEventParticipants >= eventCapacity ? 'not-allowed' : 'pointer',
+                  opacity: totalEventParticipants >= eventCapacity ? 0.6 : 1
                 })}>
                   <input
                     type="radio"
@@ -770,13 +790,22 @@ const EventApplicationForm: React.FC<EventApplicationFormProps> = ({
                     value="Online"
                     checked={participationType === "Online"}
                     onChange={() => handleParticipationTypeChange("Online")}
+                    disabled={totalEventParticipants >= eventCapacity}
                     className={css({
-                      cursor: 'pointer'
+                      cursor: totalEventParticipants >= eventCapacity ? 'not-allowed' : 'pointer'
                     })}
                   />
                   <span className={css({ fontSize: 'sm' })}>
                     オンライン参加
-                    {eventParticipants >= eventCapacity && (isTokyoRegularMeeting || isBookkeeping) && (
+                    {totalEventParticipants >= eventCapacity && (
+                      <span className={css({
+                        fontSize: 'xs',
+                        color: 'red.600',
+                        ml: '2',
+                        fontWeight: 'medium'
+                      })}>（定員満了）</span>
+                    )}
+                    {totalEventParticipants < eventCapacity && eventParticipants >= eventCapacity && (isTokyoRegularMeeting || isBookkeeping) && (
                       <span className={css({
                         fontSize: 'xs',
                         color: 'green.700',
@@ -875,23 +904,30 @@ const EventApplicationForm: React.FC<EventApplicationFormProps> = ({
           })}>
             <Button
               type="submit"
-              disabled={isBookkeeping && participationType === 'Offline' && eventParticipants >= eventCapacity}
+              disabled={
+                totalEventParticipants >= eventCapacity ||
+                (isBookkeeping && participationType === 'Offline' && eventParticipants >= eventCapacity)
+              }
               className={css({
                 w: '100%',
                 py: '3',
-                bg: isBookkeeping && participationType === 'Offline' && eventParticipants >= eventCapacity ? 'gray.400' : 'blue.500',
+                bg: (totalEventParticipants >= eventCapacity || (isBookkeeping && participationType === 'Offline' && eventParticipants >= eventCapacity)) ? 'gray.400' : 'blue.500',
                 color: 'white',
                 rounded: 'full',
                 fontSize: 'md',
                 fontWeight: 'semibold',
                 _hover: {
-                  bg: isBookkeeping && participationType === 'Offline' && eventParticipants >= eventCapacity ? 'gray.400' : 'blue.600'
+                  bg: (totalEventParticipants >= eventCapacity || (isBookkeeping && participationType === 'Offline' && eventParticipants >= eventCapacity)) ? 'gray.400' : 'blue.600'
                 },
-                cursor: isBookkeeping && participationType === 'Offline' && eventParticipants >= eventCapacity ? 'not-allowed' : 'pointer',
-                opacity: isBookkeeping && participationType === 'Offline' && eventParticipants >= eventCapacity ? 0.5 : 1,
+                cursor: (totalEventParticipants >= eventCapacity || (isBookkeeping && participationType === 'Offline' && eventParticipants >= eventCapacity)) ? 'not-allowed' : 'pointer',
+                opacity: (totalEventParticipants >= eventCapacity || (isBookkeeping && participationType === 'Offline' && eventParticipants >= eventCapacity)) ? 0.5 : 1,
               })}
             >
-              {isBookkeeping && participationType === 'Offline' && eventParticipants >= eventCapacity ? 'オフライン定員に達しました' : '申し込む'}
+              {totalEventParticipants >= eventCapacity
+                ? '定員に達しました'
+                : isBookkeeping && participationType === 'Offline' && eventParticipants >= eventCapacity
+                  ? 'オフライン定員に達しました'
+                  : '申し込む'}
             </Button>
           </div>
         </div>

@@ -32,21 +32,19 @@ export async function POST(request: Request) {
       throw new Error('イベント情報の取得に失敗しました');
     }
 
-    // 定員数チェック
-    // オンライン参加の場合は定員チェックをスキップ
-    if (selectedTypes.includes('Event') && participationType !== 'Online') {
-      const { count: eventCount, error: eventCountError } = await supabase
+    // 定員数チェック（全参加者数＝オンライン+オフラインで判定）
+    if (selectedTypes.includes('Event')) {
+      const { count: totalEventCount, error: totalEventCountError } = await supabase
         .from('trn_event_attendee')
         .select('*', { count: 'exact', head: true })
         .eq('event_id', event_id)
-        .eq('is_offline', true)
         .is('deleted_at', null);
 
-      if (eventCountError) {
+      if (totalEventCountError) {
         throw new Error('イベント参加者数の取得に失敗しました');
       }
 
-      if ((eventCount || 0) >= eventData.event_capacity) {
+      if ((totalEventCount || 0) >= eventData.event_capacity) {
         throw new Error('イベントの定員に達しています');
       }
     }

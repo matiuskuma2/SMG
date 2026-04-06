@@ -68,12 +68,11 @@ const EventDetail = () => {
 				setEvent(eventData);
 			}
 
-			// 参加者数を取得（オフライン参加者のみカウント）
+			// 参加者数を取得（オンライン+オフラインの全参加者数）
 			const { count, error: countError } = await supabase
 				.from('trn_event_attendee')
 				.select('*', { count: 'exact', head: true })
 				.eq('event_id', id)
-				.eq('is_offline', true)
 				.is('deleted_at', null);
 
 			if (!countError) {
@@ -292,13 +291,11 @@ const EventDetail = () => {
 					event_name={event.event_name}
 				/>
 
-				{/* 参加情報 - オンラインセミナー以外で表示 */}
-				{event.event_type?.event_type_name !== 'オンラインセミナー' && (
-					<EventParticipationInfo
-						participants={participantCount}
-						event_capacity={event.event_capacity}
-					/>
-				)}
+				{/* 参加情報 - 全イベントで全参加者数を表示 */}
+				<EventParticipationInfo
+					participants={participantCount}
+					event_capacity={event.event_capacity}
+				/>
 
 				{/* 申し込みボタン */}
 				<EventApplicationButton
