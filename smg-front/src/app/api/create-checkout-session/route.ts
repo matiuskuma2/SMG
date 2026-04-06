@@ -16,7 +16,7 @@ const stripe = new Stripe(stripeKey, {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { event_id, selectedTypes, participationType, questionAnswers } = body;
+    const { event_id, selectedTypes, participationType, questionAnswers, isUrgent, isFirstConsultation } = body;
 
     // Supabaseクライアントの作成
     const supabase = createClient();
@@ -123,6 +123,8 @@ export async function POST(request: Request) {
         userId: (await supabase.auth.getUser()).data.user?.id || '',
         participationType: participationType || null,
         questionAnswers: JSON.stringify(questionAnswers || {}),
+        isUrgent: isUrgent ? 'true' : 'false',
+        isFirstConsultation: isFirstConsultation ? 'true' : 'false',
       },
       payment_intent_data: {
         metadata: {
@@ -131,6 +133,8 @@ export async function POST(request: Request) {
           userId: (await supabase.auth.getUser()).data.user?.id || '',
           participationType: participationType || null,
           questionAnswers: JSON.stringify(questionAnswers || {}),
+          isUrgent: isUrgent ? 'true' : 'false',
+          isFirstConsultation: isFirstConsultation ? 'true' : 'false',
         },
       },
     });

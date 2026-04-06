@@ -49,6 +49,8 @@ const EventApplicationForm: React.FC<EventApplicationFormProps> = ({
   const [consultationParticipants, setConsultationParticipants] = useState<number>(0);
   const [questionAnswers, setQuestionAnswers] = useState<{ [key: string]: any }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUrgent, setIsUrgent] = useState(false);
+  const [isFirstConsultation, setIsFirstConsultation] = useState(false);
   const { toast } = useToast();
 
   // 定例会かつ東京開催のイベントかどうかを判定
@@ -466,6 +468,8 @@ const EventApplicationForm: React.FC<EventApplicationFormProps> = ({
             selectedTypes,
             participationType: isTokyoRegularMeeting ? participationType : null,
             questionAnswers,
+            isUrgent: selectedTypes.includes("Consultation") ? isUrgent : undefined,
+            isFirstConsultation: selectedTypes.includes("Consultation") ? isFirstConsultation : undefined,
           }),
         });
 
@@ -816,6 +820,51 @@ const EventApplicationForm: React.FC<EventApplicationFormProps> = ({
                 participantCount={consultationParticipants}
                 capacity={consultationCapacity}
               />
+
+              {/* 個別相談が選択されている場合、緊急相談・初回相談の設問を表示 */}
+              {selectedTypes.includes("Consultation") && (
+                <div className={css({
+                  mb: '4',
+                  ml: '4',
+                  pl: '4',
+                  borderLeft: '2px solid',
+                  borderColor: 'gray.200',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '3',
+                })}>
+                  <label className={css({
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '2',
+                    cursor: 'pointer',
+                    fontSize: 'sm',
+                  })}>
+                    <input
+                      type="checkbox"
+                      checked={isUrgent}
+                      onChange={(e) => setIsUrgent(e.target.checked)}
+                      className={css({ cursor: 'pointer' })}
+                    />
+                    <span>緊急の相談である（できるだけ早く対応が必要）</span>
+                  </label>
+                  <label className={css({
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '2',
+                    cursor: 'pointer',
+                    fontSize: 'sm',
+                  })}>
+                    <input
+                      type="checkbox"
+                      checked={isFirstConsultation}
+                      onChange={(e) => setIsFirstConsultation(e.target.checked)}
+                      className={css({ cursor: 'pointer' })}
+                    />
+                    <span>初めての方</span>
+                  </label>
+                </div>
+              )}
             </>
           )}
 

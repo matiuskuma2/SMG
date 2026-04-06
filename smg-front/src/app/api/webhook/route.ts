@@ -55,7 +55,7 @@ export async function POST(request: Request) {
       console.log('Webhook: checkout.session.completed イベントを受信');
       const session = event.data.object as Stripe.Checkout.Session;
       console.log('セッションメタデータ:', session.metadata);
-      const { event_id, selectedTypes, userId, participationType, questionAnswers } = session.metadata || {};
+      const { event_id, selectedTypes, userId, participationType, questionAnswers, isUrgent, isFirstConsultation } = session.metadata || {};
       
       if (!event_id) {
         console.log('Payment link決済またはmetadata不足の決済を検出、処理をスキップします');
@@ -167,6 +167,8 @@ export async function POST(request: Request) {
           .upsert({
             event_id: event_id,
             user_id: userId,
+            is_urgent: isUrgent === 'true',
+            is_first_consultation: isFirstConsultation === 'true',
             deleted_at: null,
           });
         if (consultationError) {

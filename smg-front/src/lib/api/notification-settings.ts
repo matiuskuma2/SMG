@@ -189,7 +189,7 @@ export async function getNotificationSettings(): Promise<NotificationSettingsGro
 		NOTIFICATION_TYPES,
 	).map((type) => ({
 		notification_type: type,
-		is_enabled: settingsMap.get(type) ?? false,
+		is_enabled: settingsMap.get(type) ?? true,
 	}));
 
 	// イベント種類別の通知設定
@@ -197,7 +197,7 @@ export async function getNotificationSettings(): Promise<NotificationSettingsGro
 		EVENT_PUBLISHED_TYPES,
 	).map((type) => ({
 		notification_type: type,
-		is_enabled: settingsMap.get(type) ?? false,
+		is_enabled: settingsMap.get(type) ?? true,
 	}));
 
 	// アーカイブ区分別の通知設定
@@ -205,7 +205,7 @@ export async function getNotificationSettings(): Promise<NotificationSettingsGro
 		ARCHIVE_CATEGORIES,
 	).map((category) => ({
 		notification_type: category.key,
-		is_enabled: settingsMap.get(category.key) ?? false,
+		is_enabled: settingsMap.get(category.key) ?? true,
 	}));
 
 	return {
@@ -272,13 +272,13 @@ export async function isNotificationEnabled(
 		.single();
 
 	if (error) {
-		// レコードが存在しない場合はデフォルトでOFF
+		// レコードが存在しない場合はデフォルトでON（UI表示と一致）
 		if (error.code === 'PGRST116') {
-			return false;
+			return true;
 		}
 		console.error('通知設定の確認に失敗しました:', error);
-		return false; // エラー時もデフォルトでOFF
+		return true; // エラー時もデフォルトでON
 	}
 
-	return data?.is_enabled ?? false;
+	return data?.is_enabled ?? true;
 }

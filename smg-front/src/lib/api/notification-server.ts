@@ -8,7 +8,8 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || '';
 
 /**
  * ユーザーの通知設定を確認する
- * 設定が無い場合はデフォルトでOFF（false）を返す
+ * 設定が無い場合はデフォルトでON（true）を返す
+ * ※ 通知設定UIではデフォルトON表示のため、サーバー側もONに統一
  */
 export async function isNotificationEnabledForUser(
 	userId: string,
@@ -25,15 +26,15 @@ export async function isNotificationEnabledForUser(
 		.single();
 
 	if (error) {
-		// レコードが存在しない場合はデフォルトでOFF
+		// レコードが存在しない場合はデフォルトでON（通知設定UIのデフォルト表示と一致させる）
 		if (error.code === 'PGRST116') {
-			return false;
+			return true;
 		}
 		console.error('通知設定の確認に失敗しました:', error);
-		return false; // エラー時もデフォルトでOFF
+		return true; // エラー時もデフォルトでON（通知が届かないよりは届く方が安全）
 	}
 
-	return data?.is_enabled ?? false;
+	return data?.is_enabled ?? true;
 }
 
 // ユーザーにメールを送信するユーティリティ
