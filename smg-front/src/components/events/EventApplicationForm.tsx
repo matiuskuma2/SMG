@@ -327,8 +327,65 @@ const EventApplicationForm: React.FC<EventApplicationFormProps> = ({
       }
     } catch (error) {
       console.error('質問チェックに失敗:', error);
-      // エラーの場合も確認ダイアログを表示
-      setIsDialogOpen(true);
+      // エラーの場合はトーストで通知し、フォームに留まる（質問バリデーションをバイパスしない）
+      toast({
+        title: "エラー",
+        description: "質問の取得に失敗しました。もう一度お試しください。",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // 必須質問のバリデーション（confirmSubmission用の防御的チェック）
+  const validateRequiredQuestions = async (): Promise<boolean> => {
+    try {
+      const shouldCheckQuestions = isBookkeeping || selectedTypes.includes("Event");
+      if (!shouldCheckQuestions) return true;
+
+      const questions = await getEventQuestions(event_id);
+      const requiredQuestions = questions.filter(q => q.is_required);
+      if (requiredQuestions.length === 0) return true;
+
+      const unansweredQuestions: string[] = [];
+      for (const question of requiredQuestions) {
+        const answer = questionAnswers[question.question_id];
+        let isAnswerEmpty = false;
+
+        if (answer === undefined || answer === null) {
+          isAnswerEmpty = true;
+        } else if (question.question_type === 'text' && answer === '') {
+          isAnswerEmpty = true;
+        } else if (question.question_type === 'select' && answer === '') {
+          isAnswerEmpty = true;
+        } else if (question.question_type === 'multiple_select' && (Array.isArray(answer) ? answer.length === 0 : true)) {
+          isAnswerEmpty = true;
+        } else if (question.question_type === 'boolean' && answer !== true && answer !== false) {
+          isAnswerEmpty = true;
+        }
+
+        if (isAnswerEmpty) {
+          unansweredQuestions.push(question.title);
+        }
+      }
+
+      if (unansweredQuestions.length > 0) {
+        toast({
+          title: "入力エラー",
+          description: `以下の必須質問に回答してください：\n${unansweredQuestions.map(title => `・${title}`).join('\n')}`,
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('必須質問バリデーション中にエラー:', error);
+      toast({
+        title: "エラー",
+        description: "質問のバリデーションに失敗しました。もう一度お試しください。",
+        variant: "destructive",
+      });
+      return false;
     }
   };
 
@@ -344,6 +401,16 @@ const EventApplicationForm: React.FC<EventApplicationFormProps> = ({
       isBookkeeping,
       participationType
     });
+
+    // 必須質問バリデーション（防御的チェック）
+    const isValid = await validateRequiredQuestions();
+    if (!isValid) {
+      setIsSubmitting(false);
+      setIsDialogOpen(false);
+      // 質問モーダルを再表示して回答を促す
+      setIsQuestionModalOpen(true);
+      return;
+    }
 
     // 申し込み確定前にも定員数の再チェック（全参加者数で判定）
     try {

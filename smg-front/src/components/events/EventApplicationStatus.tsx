@@ -7,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import AdditionalApplicationForm from './AdditionalApplicationForm';
 import { EventQuestionModal } from './EventQuestionModal';
 import { getEventQuestions, saveEventQuestionAnswers } from '@/lib/api/event';
+import { useToast } from '@/hooks/use-toast';
 
 const ApplicationStatus: React.FC<ApplicationStatusProps> = ({ event_id, event_type: propEventType, onReturn }) => {
   const [selectedOptions, setSelectedOptions] = useState({
@@ -46,6 +47,7 @@ const ApplicationStatus: React.FC<ApplicationStatusProps> = ({ event_id, event_t
   const [eventName, setEventName] = useState<string>('');
 
   const supabase = createClient();
+  const { toast } = useToast();
 
   const getEventLabel = () => {
     if (isBookkeeping) return '簿記講座';
@@ -285,6 +287,13 @@ const ApplicationStatus: React.FC<ApplicationStatusProps> = ({ event_id, event_t
         }
       } catch (error) {
         console.error('質問チェックに失敗:', error);
+        // エラーの場合はトーストで通知し、処理を中断（質問バリデーションをバイパスしない）
+        toast({
+          title: "エラー",
+          description: "質問の取得に失敗しました。もう一度お試しください。",
+          variant: "destructive",
+        });
+        return;
       }
     }
 
@@ -302,6 +311,55 @@ const ApplicationStatus: React.FC<ApplicationStatusProps> = ({ event_id, event_t
   // 追加申し込みの実際の処理
   const processAdditionalApplication = async (answers: { [key: string]: any }) => {
     try {
+      // 必須質問バリデーション（防御的チェック）
+      if (additionalOptions.Event) {
+        try {
+          const questions = await getEventQuestions(event_id);
+          const requiredQuestions = questions.filter(q => q.is_required);
+          const unansweredQuestions: string[] = [];
+
+          for (const question of requiredQuestions) {
+            const answer = answers[question.question_id];
+            let isAnswerEmpty = false;
+
+            if (answer === undefined || answer === null) {
+              isAnswerEmpty = true;
+            } else if (question.question_type === 'text' && answer === '') {
+              isAnswerEmpty = true;
+            } else if (question.question_type === 'select' && answer === '') {
+              isAnswerEmpty = true;
+            } else if (question.question_type === 'multiple_select' && (Array.isArray(answer) ? answer.length === 0 : true)) {
+              isAnswerEmpty = true;
+            } else if (question.question_type === 'boolean' && answer !== true && answer !== false) {
+              isAnswerEmpty = true;
+            }
+
+            if (isAnswerEmpty) {
+              unansweredQuestions.push(question.title);
+            }
+          }
+
+          if (unansweredQuestions.length > 0) {
+            toast({
+              title: "入力エラー",
+              description: `以下の必須質問に回答してください：\n${unansweredQuestions.map(title => `・${title}`).join('\n')}`,
+              variant: "destructive",
+            });
+            // 質問モーダルを再表示
+            setIsQuestionModalOpen(true);
+            return;
+          }
+        } catch (validationError) {
+          console.error('必須質問バリデーション中にエラー:', validationError);
+          toast({
+            title: "エラー",
+            description: "質問のバリデーションに失敗しました。もう一度お試しください。",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         alert('ユーザーが認証されていません');
