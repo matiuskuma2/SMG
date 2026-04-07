@@ -46,6 +46,8 @@ const ApplicationStatus: React.FC<ApplicationStatusProps> = ({ event_id, event_t
   const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
   const [questionAnswers, setQuestionAnswers] = useState<{ [key: string]: any }>({});
   const [eventName, setEventName] = useState<string>('');
+  const [registrationEndDatetime, setRegistrationEndDatetime] = useState<string | null>(null);
+  const [gatherRegistrationEndDatetime, setGatherRegistrationEndDatetime] = useState<string | null>(null);
 
   const supabase = createClient();
   const { toast } = useToast();
@@ -83,6 +85,8 @@ const ApplicationStatus: React.FC<ApplicationStatusProps> = ({ event_id, event_t
         setGatherCapacity(eventData.gather_capacity || 0);
         setConsultationCapacity(eventData.consultation_capacity || 0);
         setEventName(eventData.event_name || '');
+        setRegistrationEndDatetime(eventData.registration_end_datetime || null);
+        setGatherRegistrationEndDatetime(eventData.gather_registration_end_datetime || null);
       }
 
       // 現在の参加者数を取得（サーバーサイドAPI経由でRLSをバイパス）
@@ -244,9 +248,17 @@ const ApplicationStatus: React.FC<ApplicationStatusProps> = ({ event_id, event_t
   // 参加方法を表示するかどうかの判定
   const showParticipationType = isBookkeeping || isTokyoRegularMeeting;
 
-  // 追加申し込み可能かどうかの判定
-  const canAddEvent = !applicationStatus.Event;
-  const canAddNetworking = hasGather && !applicationStatus.Networking;
+  // 締切日チェック
+  const now = new Date();
+  const isEventRegistrationClosed = registrationEndDatetime ? now > new Date(registrationEndDatetime) : false;
+  // 懇親会の締切チェック: 懇親会専用の締切日が設定されている場合はそちらを使用、なければイベント全体の締切日を使用
+  const isGatherRegistrationClosed = gatherRegistrationEndDatetime
+    ? now > new Date(gatherRegistrationEndDatetime)
+    : isEventRegistrationClosed;
+
+  // 追加申し込み可能かどうかの判定（締切チェックを含む）
+  const canAddEvent = !applicationStatus.Event && !isEventRegistrationClosed;
+  const canAddNetworking = hasGather && !applicationStatus.Networking && !isGatherRegistrationClosed;
   const canAddConsultation = hasConsultation && !applicationStatus.Consultation;
   // 何か申し込んでいて、追加できるものがある場合にボタンを表示
   const hasAnyApplication = applicationStatus.Event || applicationStatus.Networking || applicationStatus.Consultation;
@@ -294,6 +306,22 @@ const ApplicationStatus: React.FC<ApplicationStatusProps> = ({ event_id, event_t
   // 追加申し込みの実際の処理
   const processAdditionalApplication = async (answers: { [key: string]: any }) => {
     try {
+      // 締切日の再チェック（送信時点で改めて確認）
+      const currentTime = new Date();
+      if (additionalOptions.Event && registrationEndDatetime && currentTime > new Date(registrationEndDatetime)) {
+        alert('イベントの申し込み期間が終了しています');
+        window.location.reload();
+        return;
+      }
+      if (additionalOptions.Networking) {
+        const gatherDeadline = gatherRegistrationEndDatetime || registrationEndDatetime;
+        if (gatherDeadline && currentTime > new Date(gatherDeadline)) {
+          alert('懇親会の申し込み期間が終了しています');
+          window.location.reload();
+          return;
+        }
+      }
+
       // 必須質問バリデーション（防御的チェック）
       if (additionalOptions.Event) {
         try {
@@ -774,6 +802,8 @@ const ApplicationStatus: React.FC<ApplicationStatusProps> = ({ event_id, event_t
           consultationParticipants={consultationParticipants}
           consultationCapacity={consultationCapacity}
           hasGatheringApplied={!!applicationStatus.Networking}
+          isEventRegistrationClosed={isEventRegistrationClosed}
+          isGatherRegistrationClosed={isGatherRegistrationClosed}
           onOptionsChange={setAdditionalOptions}
           onParticipationTypeChange={setAdditionalParticipationType}
           onSubmit={handleAdditionalApplication}

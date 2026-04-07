@@ -22,6 +22,8 @@ interface AdditionalApplicationFormProps {
   consultationParticipants: number;
   consultationCapacity: number;
   hasGatheringApplied: boolean;
+  isEventRegistrationClosed?: boolean;
+  isGatherRegistrationClosed?: boolean;
   onOptionsChange: (options: { Event: boolean; Networking: boolean; Consultation: boolean }) => void;
   onParticipationTypeChange: (type: string) => void;
   onSubmit: () => void;
@@ -44,6 +46,8 @@ const AdditionalApplicationForm: React.FC<AdditionalApplicationFormProps> = ({
   consultationParticipants,
   consultationCapacity,
   hasGatheringApplied,
+  isEventRegistrationClosed = false,
+  isGatherRegistrationClosed = false,
   onOptionsChange,
   onParticipationTypeChange,
   onSubmit,
@@ -63,7 +67,11 @@ const AdditionalApplicationForm: React.FC<AdditionalApplicationFormProps> = ({
   // イベントのdisabled判定
   // オンライン参加可能なイベント（簿記講座または東京定例会）の場合：イベントチェックボックスは常にクリック可能
   // オンライン参加不可能なイベントの場合：定員に達したらクリック不可
-  const isEventDisabled = !canAddEvent || (!(isBookkeeping || isTokyoRegularMeeting) && isEventFull);
+  // 締切を過ぎている場合もクリック不可
+  const isEventDisabled = !canAddEvent || isEventRegistrationClosed || (!(isBookkeeping || isTokyoRegularMeeting) && isEventFull);
+
+  // 懇親会のdisabled判定（締切チェック追加）
+  const isGatherDisabled = isGatherFull || isGatherRegistrationClosed;
 
   // オフライン参加のラジオボタンのdisabled判定
   const isOfflineDisabled = isEventFull;
@@ -169,7 +177,14 @@ const AdditionalApplicationForm: React.FC<AdditionalApplicationFormProps> = ({
                     color: 'gray.600'
                   })}>
                     {eventParticipants}/{eventCapacity}名
-                    {isEventFull && (isBookkeeping || isTokyoRegularMeeting) && (
+                    {isEventRegistrationClosed && (
+                      <span className={css({
+                        color: 'red.500',
+                        fontWeight: 'bold',
+                        marginLeft: '0.5rem'
+                      })}>申し込み期間終了</span>
+                    )}
+                    {!isEventRegistrationClosed && isEventFull && (isBookkeeping || isTokyoRegularMeeting) && (
                       <span className={css({
                         color: 'gray.500',
                         fontWeight: 'medium',
@@ -260,26 +275,26 @@ const AdditionalApplicationForm: React.FC<AdditionalApplicationFormProps> = ({
             backgroundColor: 'white',
             borderRadius: '0.75rem',
             border: '2px solid',
-            borderColor: isGatherFull ? 'gray.300' : 'blue.200',
+            borderColor: isGatherDisabled ? 'gray.300' : 'blue.200',
             transition: 'all 0.2s ease-in-out',
-            opacity: isGatherFull ? 0.6 : 1,
+            opacity: isGatherDisabled ? 0.6 : 1,
             '&:hover': {
-              transform: isGatherFull ? 'none' : 'translateY(-2px)',
-              boxShadow: isGatherFull ? 'none' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+              transform: isGatherDisabled ? 'none' : 'translateY(-2px)',
+              boxShadow: isGatherDisabled ? 'none' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
             }
           })}>
             <label className={css({
               display: 'flex',
               alignItems: 'center',
               gap: '0.75rem',
-              cursor: isGatherFull ? 'not-allowed' : 'pointer'
+              cursor: isGatherDisabled ? 'not-allowed' : 'pointer'
             })}>
               <input
                 type="checkbox"
                 checked={additionalOptions.Networking}
-                disabled={isGatherFull}
+                disabled={isGatherDisabled}
                 onChange={() => {
-                  if (!isGatherFull) {
+                  if (!isGatherDisabled) {
                     const newNetworkingValue = !additionalOptions.Networking;
                     // 懇親会のチェックを外す場合、個別相談のチェックも外す
                     onOptionsChange({
@@ -295,7 +310,7 @@ const AdditionalApplicationForm: React.FC<AdditionalApplicationFormProps> = ({
                   borderRadius: '50%',
                   border: '2px solid blue.600',
                   appearance: 'none',
-                  cursor: isGatherFull ? 'not-allowed' : 'pointer',
+                  cursor: isGatherDisabled ? 'not-allowed' : 'pointer',
                   transition: 'all 0.2s ease-in-out',
                   '&:checked': {
                     backgroundColor: 'blue.600',
@@ -305,8 +320,8 @@ const AdditionalApplicationForm: React.FC<AdditionalApplicationFormProps> = ({
                     backgroundRepeat: 'no-repeat'
                   },
                   '&:hover': {
-                    borderColor: isGatherFull ? 'blue.600' : 'blue.700',
-                    boxShadow: isGatherFull ? 'none' : '0 0 0 2px rgba(59, 130, 246, 0.2)'
+                    borderColor: isGatherDisabled ? 'blue.600' : 'blue.700',
+                    boxShadow: isGatherDisabled ? 'none' : '0 0 0 2px rgba(59, 130, 246, 0.2)'
                   },
                   '&:disabled': {
                     opacity: 0.5,
@@ -329,7 +344,14 @@ const AdditionalApplicationForm: React.FC<AdditionalApplicationFormProps> = ({
                   color: 'gray.600'
                 })}>
                   {gatherParticipants}/{gatherCapacity}名
-                  {isGatherFull && (
+                  {isGatherRegistrationClosed && (
+                    <span className={css({
+                      color: 'red.500',
+                      fontWeight: 'bold',
+                      marginLeft: '0.5rem'
+                    })}>申し込み期間終了</span>
+                  )}
+                  {!isGatherRegistrationClosed && isGatherFull && (
                     <span className={css({
                       color: 'gray.500',
                       fontWeight: 'medium',

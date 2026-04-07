@@ -25,12 +25,35 @@ export async function POST(request: Request) {
     // イベントの情報を取得
     const { data: eventData, error: eventError } = await supabase
       .from('mst_event')
-      .select('gather_price, event_name, event_start_datetime, event_capacity, gather_capacity, consultation_capacity')
+      .select('gather_price, event_name, event_start_datetime, event_capacity, gather_capacity, consultation_capacity, registration_end_datetime, gather_registration_end_datetime')
       .eq('event_id', event_id)
       .single();
 
     if (eventError) {
       throw new Error('イベント情報の取得に失敗しました');
+    }
+
+    // 締切日チェック（サーバーサイドバリデーション）
+    const now = new Date();
+
+    if (selectedTypes.includes('Event')) {
+      if (eventData.registration_end_datetime && now > new Date(eventData.registration_end_datetime)) {
+        return NextResponse.json(
+          { error: 'イベントの申し込み期間が終了しています' },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (selectedTypes.includes('Networking')) {
+      // 懇親会専用の締切日が設定されている場合はそちらを使用、なければイベント全体の締切日を使用
+      const gatherDeadline = eventData.gather_registration_end_datetime || eventData.registration_end_datetime;
+      if (gatherDeadline && now > new Date(gatherDeadline)) {
+        return NextResponse.json(
+          { error: '懇親会の申し込み期間が終了しています' },
+          { status: 400 }
+        );
+      }
     }
 
     // 動的な商品名を生成（例: "4月24日(金) 東京定例会＆懇親会参加申込み"）
