@@ -838,36 +838,41 @@ const EventApplicationForm: React.FC<EventApplicationFormProps> = ({
             </div>
           )}
 
-          {/* 簿記講座でない場合のみ懇親会と個別相談チェックボックスを表示 */}
+          {/* 簿記講座でない場合、かつ懇親会または個別相談が実施されるイベントのみ表示 */}
           {!isBookkeeping && (
             <>
-              <EventTypeCheckbox
-                event_type="Networking"
-                checked={selectedTypes.includes("Networking")}
-                onChange={() => handleTypeChange("Networking")}
-                disabled={
-                  !has_gather ||
-                  (gatherCapacity > 0 && gatherParticipants >= gatherCapacity) ||
-                  // 懇親会専用の締切日が設定されている場合はそちらで判定
-                  (gather_registration_end_datetime
-                    ? new Date() > new Date(gather_registration_end_datetime)
-                    : registration_end_datetime
-                      ? new Date() > new Date(registration_end_datetime)
-                      : false)
-                }
-                participantCount={gatherParticipants}
-                capacity={gatherCapacity}
-                isRegularMeeting={isRegularMeeting}
-              />
+              {/* 懇親会が実施されるイベントのみ懇親会チェックボックスを表示 */}
+              {has_gather && (
+                <EventTypeCheckbox
+                  event_type="Networking"
+                  checked={selectedTypes.includes("Networking")}
+                  onChange={() => handleTypeChange("Networking")}
+                  disabled={
+                    (gatherCapacity > 0 && gatherParticipants >= gatherCapacity) ||
+                    // 懇親会専用の締切日が設定されている場合はそちらで判定
+                    (gather_registration_end_datetime
+                      ? new Date() > new Date(gather_registration_end_datetime)
+                      : registration_end_datetime
+                        ? new Date() > new Date(registration_end_datetime)
+                        : false)
+                  }
+                  participantCount={gatherParticipants}
+                  capacity={gatherCapacity}
+                  isRegularMeeting={isRegularMeeting}
+                />
+              )}
 
-              <EventTypeCheckbox
-                event_type="Consultation"
-                checked={selectedTypes.includes("Consultation")}
-                onChange={() => handleTypeChange("Consultation")}
-                disabled={!has_consultation || !has_gather || (consultationCapacity > 0 && consultationParticipants >= consultationCapacity)}
-                participantCount={consultationParticipants}
-                capacity={consultationCapacity}
-              />
+              {/* 個別相談が実施され、かつ懇親会も実施されるイベントのみ個別相談チェックボックスを表示 */}
+              {has_consultation && has_gather && (
+                <EventTypeCheckbox
+                  event_type="Consultation"
+                  checked={selectedTypes.includes("Consultation")}
+                  onChange={() => handleTypeChange("Consultation")}
+                  disabled={(consultationCapacity > 0 && consultationParticipants >= consultationCapacity)}
+                  participantCount={consultationParticipants}
+                  capacity={consultationCapacity}
+                />
+              )}
 
               {/* 個別相談が選択されている場合、緊急相談・初回相談の設問を表示 */}
               {selectedTypes.includes("Consultation") && (
