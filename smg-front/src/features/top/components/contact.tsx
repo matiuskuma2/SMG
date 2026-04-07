@@ -1,6 +1,5 @@
 import { css, cx } from '@/styled-system/css';
 import { Grid } from '@/styled-system/jsx';
-import Image from 'next/image';
 import Link from 'next/link';
 import { CenteredContainer, Container, SectionHeader } from './layout';
 
@@ -29,6 +28,7 @@ export const Contact = () => (
 					}}
 					gridAutoRows={'minmax(0, 1fr)'}
 				>
+					{/* ① 各講師へ 個別相談を申し込む */}
 					<Link
 						href={'/consultations'}
 						className={cx(
@@ -52,36 +52,15 @@ export const Contact = () => (
 										mdDown: 'auto',
 									},
 								})}
-								alt="個別相談"
+								alt="各講師へ 個別相談を申し込む"
 							/>
 						</div>
-						個別相談する
+						<span className={contactLabelStyle}>
+							<span className={contactLabelBold}>各講師へ</span>
+							個別相談を申し込む
+						</span>
 					</Link>
-					<Link
-						href={'/message'}
-						className={cx(
-							baseStyle,
-							css({
-								backgroundImage: 'url(/top/box-dm.png)',
-							}),
-						)}
-					>
-						<img
-							src={'/top/icons/dm.png'}
-							alt="DM"
-							className={css({
-								w: {
-									base: 'auto',
-									mdDown: '90px',
-								},
-								maxH: {
-									base: '90px',
-									mdDown: 'auto',
-								},
-							})}
-						/>
-						DMで問い合わせする
-					</Link>
+					{/* ② 沢辺講師へ テキストで質問する */}
 					<Link
 						href={'/questions'}
 						className={cx(
@@ -92,8 +71,8 @@ export const Contact = () => (
 						)}
 					>
 						<img
-							src={'/top/icons/ask.png'}
-							alt="沢辺講師に質問する"
+							src={'/top/icons/dm.png'}
+							alt="沢辺講師へ テキストで質問する"
 							className={css({
 								w: {
 									base: 'auto',
@@ -105,7 +84,39 @@ export const Contact = () => (
 								},
 							})}
 						/>
-						沢辺講師に質問する
+						<span className={contactLabelStyle}>
+							<span className={contactLabelBold}>沢辺講師へ</span>
+							テキストで質問する
+						</span>
+					</Link>
+					{/* ③ 事務局へ DMで問い合わせる */}
+					<Link
+						href={'/message'}
+						className={cx(
+							baseStyle,
+							css({
+								backgroundImage: 'url(/top/box-dm.png)',
+							}),
+						)}
+					>
+						<img
+							src={'/top/icons/ask.png'}
+							alt="事務局へ DMで問い合わせる"
+							className={css({
+								w: {
+									base: 'auto',
+									mdDown: '90px',
+								},
+								maxH: {
+									base: '90px',
+									mdDown: 'auto',
+								},
+							})}
+						/>
+						<span className={contactLabelStyle}>
+							<span className={contactLabelBold}>事務局へ</span>
+							DMで問い合わせる
+						</span>
 					</Link>
 				</Grid>
 			</main>
@@ -134,4 +145,26 @@ const baseStyle = css({
 		mdDown: '2xl',
 	},
 	backgroundSize: 'cover',
+});
+
+const contactLabelStyle = css({
+	d: 'flex',
+	flexDir: 'column',
+	alignItems: {
+		base: 'center',
+		mdDown: 'flex-start',
+	},
+	gap: 1,
+	textStyle: {
+		base: 'md',
+		mdDown: 'lg',
+	},
+});
+
+const contactLabelBold = css({
+	fontWeight: 'bold',
+	textStyle: {
+		base: 'lg',
+		mdDown: 'xl',
+	},
 });
