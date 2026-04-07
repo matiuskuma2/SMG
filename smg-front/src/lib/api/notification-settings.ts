@@ -25,8 +25,8 @@ export const EVENT_TYPES = {
 	},
 	pdca: {
 		key: 'event_published_pdca',
-		label: 'PDCA会議実践講座',
-		description: 'PDCA会議実践講座のイベントが公開された際に通知を受け取ります',
+		label: 'PDCAサイクル実践講座',
+		description: 'PDCAサイクル実践講座のイベントが公開された際に通知を受け取ります',
 	},
 	group_consultation: {
 		key: 'event_published_group_consultation',

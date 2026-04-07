@@ -68,7 +68,7 @@ const ItemCard: React.FC<ItemCardProps> = ({
 		const cleanType = type.trim();
 		return [
 			'定例会',
-			'PDCA実践会議',
+			'PDCAサイクル実践講座',
 			'5大都市グループ相談会&交流会',
 			'簿記講座',
 			'オンラインセミナー',

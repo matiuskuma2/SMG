@@ -28,7 +28,7 @@ const EventCard: React.FC<EventCardProps> = ({
   // 正規化されたタイプ名をCSSクラス名に使用
   const getNormalizedTypeName = (type: string): string => {
     const cleanType = type.trim();
-    return ['定例会', 'PDCA実践会議', '5大都市グループ相談会&交流会', '簿記講座', 'オンラインセミナー', '特別セミナー'].includes(cleanType)
+    return ['定例会', 'PDCAサイクル実践講座', '5大都市グループ相談会&交流会', '簿記講座', 'オンラインセミナー', '特別セミナー'].includes(cleanType)
       ? cleanType
       : 'default';
   };

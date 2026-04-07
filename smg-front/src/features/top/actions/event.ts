@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 const EVENT_TYPE_NAMES = [
 	'定例会',
 	'5大都市グループ相談会&交流会',
-	'PDCA会議実践講座',
+	'PDCAサイクル実践講座',
 	'簿記講座',
 	'オンラインセミナー',
 	'特別セミナー',

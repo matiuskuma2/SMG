@@ -42,7 +42,7 @@ const SearchSection = ({
 		},
 		eventTypes: {
 			regular: false, // 定例会
-			pdcaMeeting: false, // PDCA実践会議
+			pdcaMeeting: false, // PDCAサイクル実践講座
 			groupConsultation: false, // 5大都市グループ相談会&交流会
 			bookkeeping: false, // 簿記講座
 			onlineSeminar: false, // オンラインセミナー

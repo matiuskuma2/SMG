@@ -29,7 +29,7 @@ export type Format = typeof FORMATS[keyof typeof FORMATS];
 // 表示名のマッピング
 export const EVENT_TYPE_LABELS: Record<EventType, string> = {
   [EVENT_TYPES.REGULAR]: '定例会',
-  [EVENT_TYPES.PDCA_MEETING]: 'PDCA実践会議',
+  [EVENT_TYPES.PDCA_MEETING]: 'PDCAサイクル実践講座',
   [EVENT_TYPES.GROUP_CONSULTATION]: '5大都市グループ相談会&交流会',
   [EVENT_TYPES.ONLINE_SEMINAR]: 'オンラインセミナー',
   [EVENT_TYPES.SPECIAL_SEMINAR]: '特別セミナー',

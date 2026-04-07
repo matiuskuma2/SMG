@@ -27,7 +27,7 @@ const EVENT_TYPES = [
 			</>
 		),
 	},
-	{ value: 'PDCA会議実践講座', label: 'PDCA会議実践講座' },
+	{ value: 'PDCAサイクル実践講座', label: 'PDCAサイクル実践講座' },
 	{ value: '簿記講座', label: '簿記講座' },
 	{ value: 'オンラインセミナー', label: 'オンラインセミナー' },
 	{ value: '特別セミナー', label: '特別セミナー' },

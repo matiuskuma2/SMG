@@ -417,7 +417,7 @@ export const typeVariants = {
 		bg: '#BEE3F8',
 		color: '#2B6CB0',
 	},
-	PDCA会議実践講座: {
+	PDCAサイクル実践講座: {
 		bg: '#C6F6D5',
 		color: '#276749',
 	},

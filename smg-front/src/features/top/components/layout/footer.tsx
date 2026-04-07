@@ -142,7 +142,7 @@ export const PCFooter = () => (
 						</Li>
 						<Li>
 							<Link href="/events?eventTypes=110061e0-2bc9-48b2-aa84-a174ac63f631">
-								- PDCA実施会議
+								- PDCAサイクル実践講座
 							</Link>
 						</Li>
 						<Li>
