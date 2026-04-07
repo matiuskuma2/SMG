@@ -83,10 +83,27 @@ export const ThreadItem = ({
               fontSize={'sm'}
             >
               <Stack gap={0.5} minW={0} flex={1}>
-                <div className={css({ display: 'flex', alignItems: 'center', gap: '1.5' })}>
+                <div className={css({ display: 'flex', alignItems: 'center', gap: '1.5', flexWrap: 'wrap' })}>
                   <span className={css({ fontSize: 'large', lineClamp: 1 })}>
                     {thread.user.username}
                   </span>
+                  {(thread as unknown as Thread).user?.user_type && (
+                    <span
+                      className={css({
+                        fontSize: '2xs',
+                        px: '1.5',
+                        py: '0.5',
+                        bg: (thread as unknown as Thread).user?.user_type === '代表者' ? 'blue.100' : 'orange.100',
+                        color: (thread as unknown as Thread).user?.user_type === '代表者' ? 'blue.700' : 'orange.700',
+                        rounded: 'sm',
+                        fontWeight: 'medium',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0,
+                      })}
+                    >
+                      {(thread as unknown as Thread).user?.user_type}
+                    </span>
+                  )}
                   {isDeleted && (
                     <span
                       className={css({
@@ -910,14 +927,33 @@ const CreateThreadDialog = () => {
                 minW={0}
                 gap={0}
               >
-                <span
-                  className={css({
-                    color: selected === d.id ? 'blue.800' : 'gray.800',
-                    fontWeight: 'medium',
-                  })}
-                >
-                  {d.username}
-                </span>
+                <Flex alignItems="center" gap="1.5">
+                  <span
+                    className={css({
+                      color: selected === d.id ? 'blue.800' : 'gray.800',
+                      fontWeight: 'medium',
+                    })}
+                  >
+                    {d.username}
+                  </span>
+                  {(d as typeof d & { user_type?: string | null }).user_type && (
+                    <span
+                      className={css({
+                        fontSize: '2xs',
+                        px: '1',
+                        py: '0.5',
+                        bg: (d as typeof d & { user_type?: string | null }).user_type === '代表者' ? 'blue.100' : 'orange.100',
+                        color: (d as typeof d & { user_type?: string | null }).user_type === '代表者' ? 'blue.700' : 'orange.700',
+                        rounded: 'sm',
+                        fontWeight: 'medium',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0,
+                      })}
+                    >
+                      {(d as typeof d & { user_type?: string | null }).user_type}
+                    </span>
+                  )}
+                </Flex>
                 {d.email && (
                   <span
                     className={css({

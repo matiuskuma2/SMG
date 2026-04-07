@@ -11,6 +11,7 @@ export type Thread = {
     email: string | null;
     icon: string | null;
     is_deleted: boolean;
+    user_type: string | null;
   };
   labelId: string | null;
   tagIds: string[];
@@ -33,6 +34,7 @@ type RawThread = {
     email: string | null;
     icon: string | null;
     deleted_at: string | null;
+    user_type: string | null;
   } | null;
   label: { label_id: string } | null;
   created_at: string | null;
@@ -43,7 +45,7 @@ type RawThread = {
 // スレッド取得用の共通SELECTクエリ
 const THREAD_SELECT = `
   thread_id,
-  user:user_id (user_id, username, email, icon, deleted_at),
+  user:user_id (user_id, username, email, icon, deleted_at, user_type),
   label:trn_dm_thread_label!left(label_id),
   created_at,
   last_sent_at,
@@ -52,7 +54,7 @@ const THREAD_SELECT = `
 
 const THREAD_SELECT_INNER = `
   thread_id,
-  user:user_id!inner (user_id, username, email, icon, deleted_at),
+  user:user_id!inner (user_id, username, email, icon, deleted_at, user_type),
   label:trn_dm_thread_label!left(label_id),
   created_at,
   last_sent_at,
@@ -132,6 +134,7 @@ async function attachLatestMessagesAndTags(
       email: thread.user?.email ?? null,
       icon: thread.user?.icon ?? null,
       is_deleted: thread.user?.deleted_at !== null,
+      user_type: thread.user?.user_type ?? null,
     },
     labelId: thread.label?.label_id ?? null,
     tagIds: tagMap.get(thread.thread_id) || [],
@@ -182,7 +185,7 @@ export async function fetchDmPageData() {
   // 全ユーザーを取得（退会者含む、deleted_atも取得）
   const { data: allUsersData } = await client
     .from('mst_user')
-    .select('user_id, username, email, icon, deleted_at');
+    .select('user_id, username, email, icon, deleted_at, user_type');
 
   // 管理者ユーザーのグループ情報を取得
   const { data: adminUsersWithGroups } = await client
@@ -211,6 +214,7 @@ export async function fetchDmPageData() {
     email: u.email,
     icon: u.icon,
     is_deleted: u.deleted_at !== null,
+    user_type: u.user_type || null,
     groups: groupsByUser.get(u.user_id) || [],
   }));
 

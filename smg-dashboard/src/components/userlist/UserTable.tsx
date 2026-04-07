@@ -22,6 +22,30 @@ const PAYMENT_STATUS_TEXT = {
 
 const UNPAID_GROUP_NAME = '未決済';
 
+// グループベースのバッジ判定用定数
+const BADGE_GROUP_NAMES = ['講師', 'パートナー税理士'] as const;
+
+type BadgeInfo = {
+  label: string;
+  bg: string;
+  color: string;
+};
+
+const BADGE_STYLES: Record<string, BadgeInfo> = {
+  '講師': { label: '講師', bg: 'purple.100', color: 'purple.800' },
+  'パートナー税理士': { label: 'パートナー税理士', bg: 'teal.100', color: 'teal.800' },
+};
+
+/** ユーザーのグループからバッジ情報を取得 */
+const getUserBadges = (user: UserListItem): BadgeInfo[] => {
+  const groups = user.trn_group_user
+    ?.map((gu) => gu.mst_group?.title)
+    .filter(Boolean) as string[] ?? [];
+  return BADGE_GROUP_NAMES
+    .filter((name) => groups.includes(name))
+    .map((name) => BADGE_STYLES[name]);
+};
+
 interface UserTableProps {
   currentUsers: UserListItem[];
   selectedUsers: string[];
@@ -175,7 +199,43 @@ export const UserTable: React.FC<UserTableProps> = ({
               <td className={cellStyle}>{user.last_login_at}</td>
               <td className={cellStyle}>{user.email}</td>
               <td className={cellStyle}>{user.phone_number}</td>
-              <td className={cellStyle}>{user.user_type}</td>
+              <td className={cellStyle}>
+                <div className={css({ display: 'flex', flexWrap: 'wrap', gap: '1', alignItems: 'center' })}>
+                  {user.user_type && (
+                    <span>{user.user_type}</span>
+                  )}
+                  {getUserBadges(user).map((badge) => (
+                    <span
+                      key={badge.label}
+                      className={css({
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        px: '1.5',
+                        py: '0.5',
+                        rounded: 'md',
+                        fontSize: 'xs',
+                        fontWeight: 'medium',
+                        bg: badge.bg,
+                        color: badge.color,
+                        whiteSpace: 'nowrap',
+                      })}
+                    >
+                      {badge.label}
+                    </span>
+                  ))}
+                  {user.user_type === 'パートナー' && user.daihyosha_name && (
+                    <span
+                      className={css({
+                        fontSize: 'xs',
+                        color: 'gray.500',
+                        whiteSpace: 'nowrap',
+                      })}
+                    >
+                      ({user.daihyosha_name})
+                    </span>
+                  )}
+                </div>
+              </td>
               {canViewPaymentStatus && (
                 <td className={cellStyle}>
                   {(() => {

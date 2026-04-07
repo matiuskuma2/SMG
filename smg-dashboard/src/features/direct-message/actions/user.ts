@@ -11,6 +11,7 @@ export const fetchUsers = async () => {
       username,
       email,
       icon,
+      user_type,
       groups:mst_group (
         id:group_id,
         title

@@ -154,6 +154,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
               {type || '未設定'}
             </option>
           ))}
+          <option disabled>──────────</option>
+          <option value="group:講師">講師</option>
+          <option value="group:パートナー税理士">パートナー税理士</option>
         </select>
 
         {handleExportCSV && (

@@ -74,6 +74,7 @@ export type UserListItem = Pick<
   | 'created_at'
   | 'last_login_at'
   | 'updated_at'
+  | 'daihyosha_id'
 > & {
   // グループ情報を追加
   trn_group_user?: Array<{
@@ -81,6 +82,8 @@ export type UserListItem = Pick<
       title: string;
     } | null;
   }> | null;
+  // 代表者名（パートナーの場合に表示）
+  daihyosha_name?: string | null;
 };
 
 // ユーザー検索・フィルタリング用の型定義

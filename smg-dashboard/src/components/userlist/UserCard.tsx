@@ -19,6 +19,29 @@ const PAYMENT_STATUS_TEXT = {
 
 const UNPAID_GROUP_NAME = '未決済';
 
+// グループベースのバッジ判定用定数
+const BADGE_GROUP_NAMES = ['講師', 'パートナー税理士'] as const;
+
+type BadgeInfo = {
+  label: string;
+  bg: string;
+  color: string;
+};
+
+const BADGE_STYLES: Record<string, BadgeInfo> = {
+  '講師': { label: '講師', bg: 'purple.100', color: 'purple.800' },
+  'パートナー税理士': { label: 'パートナー税理士', bg: 'teal.100', color: 'teal.800' },
+};
+
+const getUserBadges = (user: UserListItem): BadgeInfo[] => {
+  const groups = user.trn_group_user
+    ?.map((gu) => gu.mst_group?.title)
+    .filter(Boolean) as string[] ?? [];
+  return BADGE_GROUP_NAMES
+    .filter((name) => groups.includes(name))
+    .map((name) => BADGE_STYLES[name]);
+};
+
 interface UserCardProps {
   currentUsers: UserListItem[];
   selectedUsers: string[];
@@ -139,7 +162,41 @@ export const UserCard: React.FC<UserCardProps> = ({
               <div className={css({ color: 'gray.600', fontSize: 'sm' })}>
                 属性:
               </div>
-              <div className={css({ fontSize: 'sm' })}>{user.user_type}</div>
+              <div className={css({ fontSize: 'sm', display: 'flex', flexWrap: 'wrap', gap: '1', alignItems: 'center' })}>
+                {user.user_type && (
+                  <span>{user.user_type}</span>
+                )}
+                {getUserBadges(user).map((badge) => (
+                  <span
+                    key={badge.label}
+                    className={css({
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      px: '1.5',
+                      py: '0.5',
+                      rounded: 'md',
+                      fontSize: 'xs',
+                      fontWeight: 'medium',
+                      bg: badge.bg,
+                      color: badge.color,
+                      whiteSpace: 'nowrap',
+                    })}
+                  >
+                    {badge.label}
+                  </span>
+                ))}
+                {user.user_type === 'パートナー' && user.daihyosha_name && (
+                  <span
+                    className={css({
+                      fontSize: 'xs',
+                      color: 'gray.500',
+                      whiteSpace: 'nowrap',
+                    })}
+                  >
+                    ({user.daihyosha_name})
+                  </span>
+                )}
+              </div>
             </div>
             <div
               className={css({

@@ -73,6 +73,7 @@ export async function getUsersAction(
         created_at,
         last_login_at,
         updated_at,
+        daihyosha_id,
         trn_group_user (
           mst_group (
             title
@@ -93,7 +94,36 @@ export async function getUsersAction(
 
     // ロールフィルターの適用
     if (filterRole && filterRole !== 'all') {
-      query = query.eq('user_type', filterRole);
+      if (filterRole.startsWith('group:')) {
+        // グループ名で絞り込み（例: group:講師, group:パートナー税理士）
+        const groupName = filterRole.replace('group:', '');
+        const { data: groupData } = await supabase
+          .from('mst_group')
+          .select('group_id')
+          .eq('title', groupName)
+          .is('deleted_at', null)
+          .single();
+
+        if (groupData) {
+          const { data: groupUsers } = await supabase
+            .from('trn_group_user')
+            .select('user_id')
+            .eq('group_id', groupData.group_id)
+            .is('deleted_at', null);
+
+          const userIds = (groupUsers || []).map((gu) => gu.user_id).filter(Boolean) as string[];
+          if (userIds.length > 0) {
+            query = query.in('user_id', userIds);
+          } else {
+            // グループにユーザーがいない場合は結果を空にする
+            query = query.in('user_id', ['__no_match__']);
+          }
+        } else {
+          query = query.in('user_id', ['__no_match__']);
+        }
+      } else {
+        query = query.eq('user_type', filterRole);
+      }
     }
 
     // ソートの適用
@@ -117,6 +147,25 @@ export async function getUsersAction(
       throw error;
     }
 
+    // パートナーの代表者名を取得
+    const partnerUserIds = data
+      ?.filter((u) => u.daihyosha_id)
+      .map((u) => u.daihyosha_id as string) ?? [];
+    const uniqueDaihyoshaIds = [...new Set(partnerUserIds)];
+
+    let daihyoshaMap = new Map<string, string>();
+    if (uniqueDaihyoshaIds.length > 0) {
+      const { data: daihyoshaData } = await supabase
+        .from('mst_user')
+        .select('user_id, username')
+        .in('user_id', uniqueDaihyoshaIds);
+      if (daihyoshaData) {
+        daihyoshaMap = new Map(
+          daihyoshaData.map((d) => [d.user_id, d.username || ''])
+        );
+      }
+    }
+
     // 日付フォーマットの整形
     const formattedData: UserListItem[] =
       data?.map((user) => ({
@@ -132,6 +181,10 @@ export async function getUsersAction(
         user_type: user.user_type || '',
         company_name: user.company_name || '',
         icon: user.icon || '',
+        daihyosha_id: user.daihyosha_id || null,
+        daihyosha_name: user.daihyosha_id
+          ? daihyoshaMap.get(user.daihyosha_id) || ''
+          : null,
       })) ?? [];
 
     // user_typeの一覧を取得（別クエリで全体から取得）
@@ -207,7 +260,34 @@ export async function exportUsersCSVAction(
     }
 
     if (filterRole && filterRole !== 'all') {
-      query = query.eq('user_type', filterRole);
+      if (filterRole.startsWith('group:')) {
+        const groupName = filterRole.replace('group:', '');
+        const { data: groupData } = await supabase
+          .from('mst_group')
+          .select('group_id')
+          .eq('title', groupName)
+          .is('deleted_at', null)
+          .single();
+
+        if (groupData) {
+          const { data: groupUsers } = await supabase
+            .from('trn_group_user')
+            .select('user_id')
+            .eq('group_id', groupData.group_id)
+            .is('deleted_at', null);
+
+          const userIds = (groupUsers || []).map((gu) => gu.user_id).filter(Boolean) as string[];
+          if (userIds.length > 0) {
+            query = query.in('user_id', userIds);
+          } else {
+            query = query.in('user_id', ['__no_match__']);
+          }
+        } else {
+          query = query.in('user_id', ['__no_match__']);
+        }
+      } else {
+        query = query.eq('user_type', filterRole);
+      }
     }
 
     if (sortByJoinedDate) {
