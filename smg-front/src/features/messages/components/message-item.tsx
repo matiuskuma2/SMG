@@ -7,9 +7,69 @@ import { flex } from '@/styled-system/patterns';
 import { token } from '@/styled-system/tokens';
 import dayjs from 'dayjs';
 import Image from 'next/image';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { GrUpdate } from 'react-icons/gr';
 import { MdFileDownload, MdInsertDriveFile, MdDescription, MdTableChart, MdSlideshow } from 'react-icons/md';
+
+// URL正規表現パターン
+const URL_REGEX = /(https?:\/\/[^\s]+)/g;
+
+// テキスト中のURLをクリック可能なリンクに変換するコンポーネント
+const LinkifiedText = ({ text, isMe }: { text: string; isMe: boolean }) => {
+	const parts = useMemo(() => {
+		const result: { type: 'text' | 'link'; value: string }[] = [];
+		let lastIndex = 0;
+		let match: RegExpExecArray | null;
+		const regex = new RegExp(URL_REGEX.source, 'g');
+
+		while ((match = regex.exec(text)) !== null) {
+			// URL前のテキスト
+			if (match.index > lastIndex) {
+				result.push({ type: 'text', value: text.slice(lastIndex, match.index) });
+			}
+			// URL部分（末尾の句読点等を除去）
+			let url = match[0];
+			const trailingPunct = url.match(/[)\uff09\u3002\u3001,\uff0c]+$/);
+			if (trailingPunct) {
+				url = url.slice(0, -trailingPunct[0].length);
+			}
+			result.push({ type: 'link', value: url });
+			lastIndex = match.index + url.length;
+			// regexのlastIndexを補正
+			regex.lastIndex = lastIndex;
+		}
+		// 残りのテキスト
+		if (lastIndex < text.length) {
+			result.push({ type: 'text', value: text.slice(lastIndex) });
+		}
+		return result;
+	}, [text]);
+
+	return (
+		<>
+			{parts.map((part, i) =>
+				part.type === 'link' ? (
+					<a
+						key={i}
+						href={part.value}
+						target="_blank"
+						rel="noopener noreferrer"
+						style={{
+							color: isMe ? '#c3e0ff' : '#90cdf4',
+							textDecoration: 'underline',
+							wordBreak: 'break-all',
+						}}
+						onClick={(e) => e.stopPropagation()}
+					>
+						{part.value}
+					</a>
+				) : (
+					<span key={i}>{part.value}</span>
+				),
+			)}
+		</>
+	);
+};
 
 // 画像ファイルかどうかをURLから判定
 const isImageUrl = (url: string): boolean => {
@@ -188,9 +248,10 @@ export const MessageItem = ({
 								fontSize: 'md',
 								textAlign: 'left',
 								whiteSpace: 'pre-wrap',
+								wordBreak: 'break-word',
 							})}
 						>
-							{msg}
+							<LinkifiedText text={msg} isMe={isMe} />
 						</div>
 					</div>
 					<div

@@ -6,8 +6,64 @@ import { css } from '@/styled-system/css';
 import { Flex } from '@/styled-system/jsx';
 import { token } from '@/styled-system/tokens';
 import dayjs from 'dayjs';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { LuDownload, LuX, LuFile, LuFileText, LuFileSpreadsheet, LuPresentation } from 'react-icons/lu';
+
+// URL正規表現パターン
+const URL_REGEX = /(https?:\/\/[^\s]+)/g;
+
+// テキスト中のURLをクリック可能なリンクに変換するコンポーネント
+const LinkifiedText = ({ text, isMe }: { text: string; isMe: boolean }) => {
+  const parts = useMemo(() => {
+    const result: { type: 'text' | 'link'; value: string }[] = [];
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+    const regex = new RegExp(URL_REGEX.source, 'g');
+
+    while ((match = regex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        result.push({ type: 'text', value: text.slice(lastIndex, match.index) });
+      }
+      let url = match[0];
+      const trailingPunct = url.match(/[)\uff09\u3002\u3001,\uff0c]+$/);
+      if (trailingPunct) {
+        url = url.slice(0, -trailingPunct[0].length);
+      }
+      result.push({ type: 'link', value: url });
+      lastIndex = match.index + url.length;
+      regex.lastIndex = lastIndex;
+    }
+    if (lastIndex < text.length) {
+      result.push({ type: 'text', value: text.slice(lastIndex) });
+    }
+    return result;
+  }, [text]);
+
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.type === 'link' ? (
+          <a
+            key={i}
+            href={part.value}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              color: isMe ? '#c3e0ff' : '#90cdf4',
+              textDecoration: 'underline',
+              wordBreak: 'break-all',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {part.value}
+          </a>
+        ) : (
+          <span key={i}>{part.value}</span>
+        ),
+      )}
+    </>
+  );
+};
 
 type MessageItemProps = {
   isMe?: boolean;
@@ -276,7 +332,7 @@ export const MessageItem = ({ msg }: MessageItemProps) => {
                         wordBreak: 'break-word',
                       })}
                     >
-                      {msg.content}
+                      <LinkifiedText text={msg.content} isMe={msg.isMe} />
                     </div>
                   </div>
                 )}
@@ -303,7 +359,7 @@ export const MessageItem = ({ msg }: MessageItemProps) => {
                     wordBreak: 'break-word',
                   })}
                 >
-                  {msg.content}
+                  <LinkifiedText text={msg.content} isMe={msg.isMe} />
                 </div>
               </div>
             )}
