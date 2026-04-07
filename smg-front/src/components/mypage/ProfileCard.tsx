@@ -2,11 +2,10 @@
 
 import { useProfile } from '@/components/ProfileContext';
 import { css } from '@/styled-system/css';
-import { Edit, QrCode } from 'lucide-react';
+import { Edit, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react';
-import { QRCodeModal } from './QRCodeModal';
+import { useState, useEffect } from 'react';
 
 // SNSアイコンの定義
 const snsIcons = {
@@ -78,9 +77,46 @@ const SNSItem = ({
 	);
 };
 
+interface QRCodeResponse {
+	success: boolean;
+	qrImage?: string;
+	qrToken?: string;
+	error?: string;
+	message?: string;
+}
+
 export const ProfileCard = () => {
 	const { profileData } = useProfile();
-	const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+	const [qrImage, setQrImage] = useState<string | null>(null);
+	const [isQRLoading, setIsQRLoading] = useState(true);
+	const [qrError, setQrError] = useState<string | null>(null);
+
+	// マイページ表示時にQRコードを自動取得
+	useEffect(() => {
+		const fetchQRCode = async () => {
+			setIsQRLoading(true);
+			setQrError(null);
+			try {
+				const response = await fetch('/api/mypage/qr-code');
+				const data: QRCodeResponse = await response.json();
+				if (response.ok && data.success && data.qrImage) {
+					setQrImage(data.qrImage);
+				} else {
+					if (response.status === 404) {
+						setQrError(data.message || 'QRコードが見つかりません');
+					} else {
+						setQrError(data.error || 'QRコードの取得に失敗しました');
+					}
+				}
+			} catch (err) {
+				console.error('QRCode fetch error:', err);
+				setQrError('QRコードの取得中にエラーが発生しました');
+			} finally {
+				setIsQRLoading(false);
+			}
+		};
+		fetchQRCode();
+	}, []);
 
 	// カードスタイル
 	const cardStyle = css({
@@ -104,22 +140,6 @@ export const ProfileCard = () => {
 			<div className={cardHeaderStyle}>
 				<h2 className={css({ fontWeight: 'bold' })}>プロフィール</h2>
 				<div className={css({ marginLeft: 'auto', display: 'flex', gap: '1' })}>
-					<button
-						type="button"
-						onClick={() => setIsQRModalOpen(true)}
-						className={css({
-							display: 'flex',
-							alignItems: 'center',
-							justifyContent: 'center',
-							p: '2',
-							borderRadius: 'md',
-							_hover: { bg: 'gray.100' },
-							transition: 'background-color 0.2s',
-						})}
-						title="QRコードを表示"
-					>
-						<QrCode className={css({ h: '4', w: '4', color: 'gray.500' })} />
-					</button>
 					<Link href="/mypage/profile/edit">
 						<button
 							type="button"
@@ -150,16 +170,78 @@ export const ProfileCard = () => {
 							overflow: 'hidden',
 						})}
 					>
-											<Image
-						src={profileData.profileImage || "/profile-icon.jpg"}
-						alt="アイコン"
-						width={64}
-						height={64}
-						quality={100}
-						unoptimized={true}
-						className={css({ w: 'full', h: 'full', objectFit: 'cover' })}
-					/>
+						<Image
+							src={profileData.profileImage || "/profile-icon.jpg"}
+							alt="アイコン"
+							width={64}
+							height={64}
+							quality={100}
+							unoptimized={true}
+							className={css({ w: 'full', h: 'full', objectFit: 'cover' })}
+						/>
 					</div>
+				</div>
+
+				{/* QRコード（常時表示） */}
+				<div
+					className={css({
+						display: 'flex',
+						flexDirection: 'column',
+						alignItems: 'center',
+						py: '4',
+						borderBottomWidth: '1px',
+						borderColor: 'gray.200',
+					})}
+				>
+					{isQRLoading && (
+						<div
+							className={css({
+								display: 'flex',
+								flexDirection: 'column',
+								alignItems: 'center',
+								gap: '2',
+								py: '6',
+							})}
+						>
+							<Loader2
+								className={css({
+									h: '6',
+									w: '6',
+									color: 'gray.400',
+									animation: 'spin 1s linear infinite',
+								})}
+							/>
+							<p className={css({ color: 'gray.500', fontSize: 'xs' })}>
+								QRコードを読み込み中...
+							</p>
+						</div>
+					)}
+					{!isQRLoading && qrError && (
+						<p className={css({ color: 'gray.400', fontSize: 'xs', py: '2' })}>
+							{qrError}
+						</p>
+					)}
+					{!isQRLoading && !qrError && qrImage && (
+						<>
+							<p className={css({ color: 'gray.500', fontSize: 'xs', mb: '2', fontWeight: 'bold' })}>
+								会員QRコード
+							</p>
+							<img
+								src={qrImage}
+								alt="会員QRコード"
+								className={css({
+									w: '180px',
+									h: '180px',
+									border: '1px solid',
+									borderColor: 'gray.200',
+									borderRadius: 'md',
+								})}
+							/>
+							<p className={css({ color: 'gray.400', fontSize: 'xs', mt: '2' })}>
+								このQRコードを会員証としてご利用ください
+							</p>
+						</>
+					)}
 				</div>
 
 				{/* 名前 */}
@@ -340,11 +422,6 @@ export const ProfileCard = () => {
 					</div>
 				)}
 			</div>
-
-			<QRCodeModal
-				isOpen={isQRModalOpen}
-				onClose={() => setIsQRModalOpen(false)}
-			/>
 		</div>
 	);
 };
