@@ -4,6 +4,47 @@ import type { JWT } from 'google-auth-library';
 import { google } from 'googleapis';
 import { NextResponse } from 'next/server';
 
+// 回答データを表示用文字列に変換するヘルパー関数
+function formatAnswer(
+  answer:
+    | string
+    | boolean
+    | string[]
+    | number
+    | {
+        text?: string;
+        value?: string | number | boolean;
+        boolean?: boolean;
+        selected?: string[];
+      }
+    | null
+    | undefined,
+  questionType?: string,
+): string {
+  if (answer === null || answer === undefined) return '';
+
+  if (typeof answer === 'string') return answer;
+  if (typeof answer === 'number') return String(answer);
+  if (typeof answer === 'boolean') return answer ? 'はい' : 'いいえ';
+  if (Array.isArray(answer)) return answer.join(', ');
+
+  // オブジェクト型の回答
+  if (typeof answer === 'object') {
+    if (questionType === 'boolean' && answer.boolean !== undefined) {
+      return answer.boolean ? 'はい' : 'いいえ';
+    }
+    if (answer.selected && Array.isArray(answer.selected)) {
+      return answer.selected.join(', ');
+    }
+    if (answer.text !== undefined) return String(answer.text);
+    if (answer.value !== undefined) return String(answer.value);
+    // フォールバック: JSONとして出力
+    return JSON.stringify(answer);
+  }
+
+  return String(answer);
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -18,16 +59,6 @@ export async function POST(req: Request) {
       consultationParticipants: Participant[];
       eventData: EventData;
     } = body;
-
-    console.log('===========');
-    console.log(eventParticipants);
-    console.log('===========');
-    console.log(partyParticipants);
-    console.log('===========');
-    console.log(consultationParticipants);
-    console.log('===========');
-    console.log(eventData);
-    console.log('===========');
 
     const auth = new google.auth.GoogleAuth({
       credentials: {
@@ -52,7 +83,76 @@ export async function POST(req: Request) {
       );
     }
 
-    // 既存のスプレッドシートIDがあるかチェック
+    // ========== 追加質問と回答をSupabaseから取得 ==========
+    const supabase = createClient();
+
+    // イベントに紐づく追加質問を取得（display_order順）
+    const { data: eventQuestions, error: questionsError } = await supabase
+      .from('trn_event_question')
+      .select('question_id, title, question_type, display_order')
+      .eq('event_id', eventData.event_id)
+      .is('deleted_at', null)
+      .order('display_order', { ascending: true });
+
+    if (questionsError) {
+      console.error('追加質問取得エラー:', questionsError);
+    }
+
+    const questions = eventQuestions || [];
+    const questionIds = questions.map((q) => q.question_id);
+
+    // 全参加者のuser_idを収集
+    const allUserIds = [
+      ...new Set([
+        ...eventParticipants.map((p) => p.userId),
+        ...partyParticipants.map((p) => p.userId),
+        ...consultationParticipants.map((p) => p.userId),
+      ]),
+    ];
+
+    // 全参加者の回答を一括取得
+    let answersMap: Map<string, Map<string, string>> = new Map(); // userId -> (questionId -> formattedAnswer)
+
+    if (questionIds.length > 0 && allUserIds.length > 0) {
+      const { data: allAnswers, error: answersError } = await supabase
+        .from('trn_event_question_answer')
+        .select('user_id, question_id, answer')
+        .in('question_id', questionIds)
+        .in('user_id', allUserIds)
+        .is('deleted_at', null);
+
+      if (answersError) {
+        console.error('回答取得エラー:', answersError);
+      }
+
+      if (allAnswers) {
+        for (const ans of allAnswers) {
+          if (!answersMap.has(ans.user_id)) {
+            answersMap.set(ans.user_id, new Map());
+          }
+          const question = questions.find(
+            (q) => q.question_id === ans.question_id,
+          );
+          answersMap
+            .get(ans.user_id)!
+            .set(
+              ans.question_id,
+              formatAnswer(ans.answer, question?.question_type),
+            );
+        }
+      }
+    }
+
+    // 追加質問のヘッダー列
+    const questionHeaders = questions.map((q) => q.title);
+
+    // 参加者の追加質問回答を配列として取得するヘルパー
+    const getAnswerColumns = (userId: string): string[] => {
+      const userAnswers = answersMap.get(userId);
+      return questions.map((q) => userAnswers?.get(q.question_id) || '');
+    };
+
+    // ========== 既存のスプレッドシートIDがあるかチェック ==========
     let spreadsheetId: string | undefined;
 
     if (eventData.spreadsheet_id) {
@@ -64,18 +164,18 @@ export async function POST(req: Request) {
         spreadsheetId = eventData.spreadsheet_id;
         console.log(`既存のスプレッドシートID: ${spreadsheetId}`);
 
-        // 既存のスプレッドシートの内容をクリア
+        // 既存のスプレッドシートの内容をクリア（追加質問カラム分を考慮して広範囲をクリア）
         await sheets.spreadsheets.values.clear({
           spreadsheetId,
-          range: 'イベント!A1:Z1000',
+          range: 'イベント!A1:ZZ10000',
         });
         await sheets.spreadsheets.values.clear({
           spreadsheetId,
-          range: '懇親会!A1:Z1000',
+          range: '懇親会!A1:ZZ10000',
         });
         await sheets.spreadsheets.values.clear({
           spreadsheetId,
-          range: '個別相談会!A1:Z1000',
+          range: '個別相談会!A1:ZZ10000',
         });
       } catch (error) {
         console.log(
@@ -129,6 +229,7 @@ export async function POST(req: Request) {
       });
     }
 
+    // ========== 各シートのデータ作成（追加質問カラムを含む） ==========
     const eventValues = [
       [
         '名前',
@@ -139,6 +240,7 @@ export async function POST(req: Request) {
         '電話番号',
         '属性',
         '所属グループ',
+        ...questionHeaders,
       ],
       ...eventParticipants.map((p) => [
         p.name,
@@ -149,6 +251,7 @@ export async function POST(req: Request) {
         p.phone,
         p.userType,
         p.groupAffiliation,
+        ...getAnswerColumns(p.userId),
       ]),
     ];
 
@@ -162,6 +265,7 @@ export async function POST(req: Request) {
         '属性',
         '所属グループ',
         '決済状況',
+        ...questionHeaders,
       ],
       ...partyParticipants.map((p) => [
         p.name,
@@ -176,6 +280,7 @@ export async function POST(req: Request) {
           : p.paymentStatus === 'refunded'
             ? '返金済み'
             : p.paymentStatus || '',
+        ...getAnswerColumns(p.userId),
       ]),
     ];
 
@@ -190,6 +295,7 @@ export async function POST(req: Request) {
         '所属グループ',
         '緊急相談',
         '初回相談',
+        ...questionHeaders,
       ],
       ...consultationParticipants.map((p) => [
         p.name,
@@ -201,6 +307,7 @@ export async function POST(req: Request) {
         p.groupAffiliation,
         p.is_urgent ? '緊急相談' : '',
         p.is_first_consultation ? '初回相談' : '',
+        ...getAnswerColumns(p.userId),
       ]),
     ];
 
@@ -218,7 +325,6 @@ export async function POST(req: Request) {
     await updateSheet('個別相談会', consultationValues);
 
     // データベースにspreadsheet_idを更新
-    const supabase = createClient();
     const { error: updateError } = await supabase
       .from('mst_event')
       .update({ spreadsheet_id: spreadsheetId })
