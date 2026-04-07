@@ -38,28 +38,15 @@ const EventDetails: React.FC<EventDetailsProps> = ({
   gather_registration_end_datetime
 }) => {
 
-  // 申し込み期間のフォーマット
-  const formatRegistrationPeriod = () => {
-    if (!registration_start_datetime || !registration_end_datetime) {
-      return null;
-    }
-
-    const startDate = new Date(registration_start_datetime);
-    const endDate = new Date(registration_end_datetime);
-
-    const formatDate = (date: Date) => {
-      return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 ${date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`;
-    };
-
-    return `${formatDate(startDate)} 〜 ${formatDate(endDate)}`;
+  // 日付フォーマットヘルパー
+  const formatDateTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return `${date.getMonth() + 1}/${date.getDate()} ${date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`;
   };
 
-  // 懇親会申込締切日のフォーマット
-  const formatGatherDeadline = () => {
-    if (!gather_registration_end_datetime) return null;
-    const endDate = new Date(gather_registration_end_datetime);
-    return `${endDate.getFullYear()}年${endDate.getMonth() + 1}月${endDate.getDate()}日 ${endDate.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`;
-  };
+  // 懇親会締切日が別途設定されているか判定
+  const hasSeperateGatherDeadline = !!gather_registration_end_datetime
+    && gather_registration_end_datetime !== registration_end_datetime;
 
   return (
     <>
@@ -73,10 +60,26 @@ const EventDetails: React.FC<EventDetailsProps> = ({
         mb: { base: '6', md: '8' }
       })}>
         {/* 申し込み期間の表示 */}
-        {formatRegistrationPeriod() && (
+        {registration_start_datetime && registration_end_datetime && (
           <div className={css({ width: '100%' })}>
-            <div className={css({ textAlign: 'left' })}>
-              <div className={css({ fontWeight: 'medium' })}>申し込み期間：{formatRegistrationPeriod()}</div>
+            <div className={css({ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '1' })}>
+              {hasSeperateGatherDeadline ? (
+                <>
+                  <div className={css({ fontWeight: 'medium', fontSize: 'sm' })}>
+                    定例会締切日時：{formatDateTime(registration_end_datetime)}
+                  </div>
+                  <div className={css({ fontWeight: 'medium', fontSize: 'sm' })}>
+                    懇親会締切日時：{formatDateTime(gather_registration_end_datetime!)}
+                  </div>
+                  <div className={css({ fontSize: 'xs', color: 'gray.500', mt: '0.5' })}>
+                    申し込み開始：{formatDateTime(registration_start_datetime)}
+                  </div>
+                </>
+              ) : (
+                <div className={css({ fontWeight: 'medium', fontSize: 'sm' })}>
+                  申し込み期間：{formatDateTime(registration_start_datetime)} 〜 {formatDateTime(registration_end_datetime)}
+                </div>
+              )}
             </div>
           </div>
         )}
