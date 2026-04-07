@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import type Quill from 'quill';
-import type { FC } from 'react';
+import { type FC, useEffect, useRef } from 'react';
 
 const ReactQuill = dynamic(
   async () => {
@@ -130,13 +130,50 @@ export const RichTextEditor: FC<RichTextEditorProps> = ({
   disabled = false,
   name,
 }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // quill-resize-image の画像サイズ入力欄でEnterキーを押した際に
+  // フォーム送信（submit）が発火する問題を防止する
+  // ライブラリはchangeイベント（blur時）のみリッスンしているため、
+  // Enterキーでchangeイベントを手動発火させてからblurする
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter') return;
+
+      const target = e.target as HTMLElement;
+      // #editor-resizer 内のinput要素でのみ処理
+      if (
+        target.tagName === 'INPUT' &&
+        target.closest('#editor-resizer')
+      ) {
+        // フォームsubmitを防止
+        e.preventDefault();
+        e.stopPropagation();
+
+        // changeイベントを手動発火（ライブラリのtoolbarInputChangeを呼び出す）
+        target.dispatchEvent(new Event('change', { bubbles: true }));
+
+        // inputからフォーカスを外す
+        (target as HTMLInputElement).blur();
+      }
+    };
+
+    container.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      container.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, []);
+
   const handleChange = (content: string) => {
     console.log('RichTextEditor content changed:', content);
     onChange(content);
   };
 
   return (
-    <div style={{ width: '100%' }}>
+    <div ref={containerRef} style={{ width: '100%' }}>
       <ReactQuill
         value={value}
         onChange={handleChange}
