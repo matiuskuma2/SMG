@@ -93,8 +93,7 @@ export async function POST(request: Request) {
         price_data: {
           currency: 'jpy',
           product_data: {
-            name: '懇親会参加費',
-            description: 'イベント名: ' + eventData.event_name,
+            name: eventData.event_name + ' 懇親会参加申込み',
           },
           unit_amount: eventData.gather_price,
         },
@@ -125,6 +124,7 @@ export async function POST(request: Request) {
         isFirstConsultation: isFirstConsultation ? 'true' : 'false',
       },
       payment_intent_data: {
+        description: eventData.event_name + ' 懇親会参加申込み',
         metadata: {
           event_id: event_id.toString(),
           selectedTypes: JSON.stringify(selectedTypes),
