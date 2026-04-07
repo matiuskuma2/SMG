@@ -7,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import AdditionalApplicationForm from './AdditionalApplicationForm';
 import { EventQuestionModal } from './EventQuestionModal';
 import { getEventQuestions, saveEventQuestionAnswers } from '@/lib/api/event';
+import { fetchEventParticipantCounts } from '@/lib/api/event-participant-count';
 import { useToast } from '@/hooks/use-toast';
 
 const ApplicationStatus: React.FC<ApplicationStatusProps> = ({ event_id, event_type: propEventType, onReturn }) => {
@@ -84,29 +85,11 @@ const ApplicationStatus: React.FC<ApplicationStatusProps> = ({ event_id, event_t
         setEventName(eventData.event_name || '');
       }
 
-      // 現在の参加者数を取得
-      const [eventCountResult, gatherCountResult, consultationCountResult] = await Promise.all([
-        supabase
-          .from('trn_event_attendee')
-          .select('*', { count: 'exact', head: true })
-          .eq('event_id', event_id)
-          .eq('is_offline', true)
-          .is('deleted_at', null),
-        supabase
-          .from('trn_gather_attendee')
-          .select('*', { count: 'exact', head: true })
-          .eq('event_id', event_id)
-          .is('deleted_at', null),
-        supabase
-          .from('trn_consultation_attendee')
-          .select('*', { count: 'exact', head: true })
-          .eq('event_id', event_id)
-          .is('deleted_at', null)
-      ]);
-
-      setEventParticipants(eventCountResult.count || 0);
-      setGatherParticipants(gatherCountResult.count || 0);
-      setConsultationParticipants(consultationCountResult.count || 0);
+      // 現在の参加者数を取得（サーバーサイドAPI経由でRLSをバイパス）
+      const counts = await fetchEventParticipantCounts(event_id);
+      setEventParticipants(counts.offlineEventCount);
+      setGatherParticipants(counts.gatherCount);
+      setConsultationParticipants(counts.consultationCount);
 
       // イベント参加状況の取得（is_offlineフィールドも取得）
       const { data: eventAttendance, error: eventError } = await supabase

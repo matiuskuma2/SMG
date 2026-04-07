@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@/lib/supabase-server';
+import { createAdminClient } from '@/lib/supabase-admin';
 
 // StripeのAPIキーを環境変数から取得
 const stripeKey = process.env.STRIPE_SECRET_KEY;
@@ -24,7 +25,7 @@ export async function POST(request: Request) {
     // イベントの情報を取得
     const { data: eventData, error: eventError } = await supabase
       .from('mst_event')
-      .select('gather_price, event_name, event_capacity, gather_capacity, consultation_capacity')
+      .select('gather_price, event_name, event_start_datetime, event_capacity, gather_capacity, consultation_capacity')
       .eq('event_id', event_id)
       .single();
 
@@ -32,9 +33,17 @@ export async function POST(request: Request) {
       throw new Error('イベント情報の取得に失敗しました');
     }
 
-    // 定員数チェック（全参加者数＝オンライン+オフラインで判定）
+    // 動的な商品名を生成（例: "4月24日(金) 東京定例会＆懇親会参加申込み"）
+    const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'];
+    const eventDate = new Date(eventData.event_start_datetime);
+    const formattedDate = `${eventDate.getMonth() + 1}月${eventDate.getDate()}日(${dayOfWeek[eventDate.getDay()]})`;
+    const productName = `${formattedDate} ${eventData.event_name}参加申込み`;
+
+    // service_roleクライアントで定員数チェック（RLSバイパス）
+    const adminSupabase = createAdminClient();
+
     if (selectedTypes.includes('Event')) {
-      const { count: totalEventCount, error: totalEventCountError } = await supabase
+      const { count: totalEventCount, error: totalEventCountError } = await (adminSupabase as any)
         .from('trn_event_attendee')
         .select('*', { count: 'exact', head: true })
         .eq('event_id', event_id)
@@ -50,7 +59,7 @@ export async function POST(request: Request) {
     }
 
     if (selectedTypes.includes('Networking')) {
-      const { count: gatherCount, error: gatherCountError } = await supabase
+      const { count: gatherCount, error: gatherCountError } = await (adminSupabase as any)
         .from('trn_gather_attendee')
         .select('*', { count: 'exact', head: true })
         .eq('event_id', event_id)
@@ -66,7 +75,7 @@ export async function POST(request: Request) {
     }
 
     if (selectedTypes.includes('Consultation')) {
-      const { count: consultationCount, error: consultationCountError } = await supabase
+      const { count: consultationCount, error: consultationCountError } = await (adminSupabase as any)
         .from('trn_consultation_attendee')
         .select('*', { count: 'exact', head: true })
         .eq('event_id', event_id)
@@ -93,7 +102,7 @@ export async function POST(request: Request) {
         price_data: {
           currency: 'jpy',
           product_data: {
-            name: eventData.event_name + ' 懇親会参加申込み',
+            name: productName,
           },
           unit_amount: eventData.gather_price,
         },
@@ -124,7 +133,7 @@ export async function POST(request: Request) {
         isFirstConsultation: isFirstConsultation ? 'true' : 'false',
       },
       payment_intent_data: {
-        description: eventData.event_name + ' 懇親会参加申込み',
+        description: productName,
         metadata: {
           event_id: event_id.toString(),
           selectedTypes: JSON.stringify(selectedTypes),

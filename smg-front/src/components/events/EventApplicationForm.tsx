@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { getEventQuestionAnswers, getEventQuestions, saveEventQuestionAnswers } from '@/lib/api/event';
+import { fetchEventParticipantCounts } from '@/lib/api/event-participant-count';
 import { css } from '@/styled-system/css';
 import type { EventApplicationFormProps } from '@/types/event';
 import React, { useEffect, useState } from 'react';
@@ -132,37 +133,12 @@ const EventApplicationForm: React.FC<EventApplicationFormProps> = ({
         setGatherCapacity(eventData.gather_capacity || 0);
         setConsultationCapacity(eventData.consultation_capacity || 0);
 
-        // 現在の参加者数を取得
-        const [offlineCountResult, totalCountResult, gatherCountResult, consultationCountResult] = await Promise.all([
-          // オフライン参加者数（オフライン定員表示用）
-          supabase
-            .from('trn_event_attendee')
-            .select('*', { count: 'exact', head: true })
-            .eq('event_id', event_id)
-            .eq('is_offline', true)
-            .is('deleted_at', null),
-          // 全参加者数（オンライン+オフライン、定員チェック用）
-          supabase
-            .from('trn_event_attendee')
-            .select('*', { count: 'exact', head: true })
-            .eq('event_id', event_id)
-            .is('deleted_at', null),
-          supabase
-            .from('trn_gather_attendee')
-            .select('*', { count: 'exact', head: true })
-            .eq('event_id', event_id)
-            .is('deleted_at', null),
-          supabase
-            .from('trn_consultation_attendee')
-            .select('*', { count: 'exact', head: true })
-            .eq('event_id', event_id)
-            .is('deleted_at', null)
-        ]);
-
-        setEventParticipants(offlineCountResult.count || 0);
-        setTotalEventParticipants(totalCountResult.count || 0);
-        setGatherParticipants(gatherCountResult.count || 0);
-        setConsultationParticipants(consultationCountResult.count || 0);
+        // 現在の参加者数を取得（サーバーサイドAPI経由でRLSをバイパス）
+        const counts = await fetchEventParticipantCounts(event_id);
+        setEventParticipants(counts.offlineEventCount);
+        setTotalEventParticipants(counts.eventCount);
+        setGatherParticipants(counts.gatherCount);
+        setConsultationParticipants(counts.consultationCount);
 
       } catch (error) {
         console.error('定員数・参加者数の取得に失敗:', error);
@@ -412,39 +388,15 @@ const EventApplicationForm: React.FC<EventApplicationFormProps> = ({
       return;
     }
 
-    // 申し込み確定前にも定員数の再チェック（全参加者数で判定）
+    // 申し込み確定前にも定員数の再チェック（サーバーサイドAPI経由でRLSをバイパス）
     try {
       console.log('最終定員チェック開始');
-      const [offlineCountResult, totalCountResult, gatherCountResult, consultationCountResult] = await Promise.all([
-        // オフライン参加者数
-        supabase
-          .from('trn_event_attendee')
-          .select('*', { count: 'exact', head: true })
-          .eq('event_id', event_id)
-          .eq('is_offline', true)
-          .is('deleted_at', null),
-        // 全参加者数（オンライン+オフライン）
-        supabase
-          .from('trn_event_attendee')
-          .select('*', { count: 'exact', head: true })
-          .eq('event_id', event_id)
-          .is('deleted_at', null),
-        supabase
-          .from('trn_gather_attendee')
-          .select('*', { count: 'exact', head: true })
-          .eq('event_id', event_id)
-          .is('deleted_at', null),
-        supabase
-          .from('trn_consultation_attendee')
-          .select('*', { count: 'exact', head: true })
-          .eq('event_id', event_id)
-          .is('deleted_at', null)
-      ]);
+      const latestCounts = await fetchEventParticipantCounts(event_id);
 
-      const currentOfflineParticipants = offlineCountResult.count || 0;
-      const currentTotalParticipants = totalCountResult.count || 0;
-      const currentGatherParticipants = gatherCountResult.count || 0;
-      const currentConsultationParticipants = consultationCountResult.count || 0;
+      const currentOfflineParticipants = latestCounts.offlineEventCount;
+      const currentTotalParticipants = latestCounts.eventCount;
+      const currentGatherParticipants = latestCounts.gatherCount;
+      const currentConsultationParticipants = latestCounts.consultationCount;
 
       console.log('最終定員チェック結果:', {
         currentOfflineParticipants,

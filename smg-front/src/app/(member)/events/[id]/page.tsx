@@ -9,6 +9,7 @@ import EventDetails from '@/components/events/EventDetails';
 import { EventHeader } from '@/components/events/EventHeader';
 import EventParticipationInfo from '@/components/events/EventParticipationInfo';
 import { getEventFiles } from '@/lib/api/archive';
+import { fetchEventParticipantCounts } from '@/lib/api/event-participant-count';
 import { createClient } from '@/lib/supabase';
 import { css } from '@/styled-system/css';
 import { stack } from '@/styled-system/patterns';
@@ -68,15 +69,12 @@ const EventDetail = () => {
 				setEvent(eventData);
 			}
 
-			// 参加者数を取得（オンライン+オフラインの全参加者数）
-			const { count, error: countError } = await supabase
-				.from('trn_event_attendee')
-				.select('*', { count: 'exact', head: true })
-				.eq('event_id', id)
-				.is('deleted_at', null);
-
-			if (!countError) {
-				setParticipantCount(count || 0);
+			// 参加者数を取得（サーバーサイドAPI経由でRLSをバイパス）
+			try {
+				const counts = await fetchEventParticipantCounts(id);
+				setParticipantCount(counts.eventCount);
+			} catch (countError) {
+				console.error('参加者数の取得に失敗:', countError);
 			}
 
 			// ユーザーの申し込み状態を確認

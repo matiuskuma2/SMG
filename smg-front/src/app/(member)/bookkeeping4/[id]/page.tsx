@@ -10,6 +10,7 @@ import EventNotes from '@/components/events/EventNotes';
 import EventParticipationInfo from '@/components/events/EventParticipationInfo';
 import { MaterialItem } from '@/components/archive/MaterialItem';
 import { getEventFiles } from '@/lib/api/archive';
+import { fetchEventParticipantCounts } from '@/lib/api/event-participant-count';
 import { EventFile } from '@/components/archive/types';
 import { createClient } from '@/lib/supabase';
 import { css } from '@/styled-system/css';
@@ -69,16 +70,12 @@ const Bookkeeping4Detail = () => {
 				setEvent(eventData);
 			}
 
-			// 参加者数を取得（オフライン参加者のみ）
-			const { count, error: countError } = await supabase
-				.from('trn_event_attendee')
-				.select('*', { count: 'exact', head: true })
-				.eq('event_id', id)
-				.eq('is_offline', true)
-				.is('deleted_at', null);
-
-			if (!countError) {
-				setParticipantCount(count || 0);
+			// 参加者数を取得（サーバーサイドAPI経由でRLSをバイパス）
+			try {
+				const counts = await fetchEventParticipantCounts(id);
+				setParticipantCount(counts.offlineEventCount);
+			} catch (countError) {
+				console.error('参加者数の取得に失敗:', countError);
 			}
 
 			// ユーザーの申し込み状態を確認
