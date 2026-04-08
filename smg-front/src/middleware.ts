@@ -53,7 +53,8 @@ export async function updateSession(request: NextRequest) {
 		if (user) {
 			await supabase.auth.signOut();
 		}
-		const { data: exchangeData, error } = await supabase.auth.exchangeCodeForSession(code);
+		const { data: exchangeData, error } =
+			await supabase.auth.exchangeCodeForSession(code);
 		if (!error && exchangeData.session) {
 			// code交換成功 → codeパラメータを除いた同じパスにリダイレクト
 			// これによりページ側でcodeを再度交換する問題を防ぐ
@@ -90,10 +91,12 @@ export async function updateSession(request: NextRequest) {
 
 		if (!error && userGroups && userGroups.length > 0) {
 			// いずれかのグループタイトルが「未決済」または「退会」の場合はログアウト
-			const hasRestrictedGroup = userGroups.some((userGroup: any) => 
-				userGroup.mst_group.title === '未決済' || userGroup.mst_group.title === '退会'
+			const hasRestrictedGroup = userGroups.some(
+				(userGroup: any) =>
+					userGroup.mst_group.title === '未決済' ||
+					userGroup.mst_group.title === '退会',
 			);
-			
+
 			if (hasRestrictedGroup) {
 				await supabase.auth.signOut();
 				const url = request.nextUrl.clone();
@@ -104,20 +107,30 @@ export async function updateSession(request: NextRequest) {
 		}
 	}
 
-	const anonymousRoutes = ['/login', '/member/login', '/forgotPassword', '/reset-password', '/signup', '/x7k9m2p'];
+	const anonymousRoutes = [
+		'/login',
+		'/member/login',
+		'/forgotPassword',
+		'/reset-password',
+		'/signup',
+		'/x7k9m2p',
+	];
 	// プレフィックスマッチが必要なパブリックルート（動的パス対応）
 	// 注意: /nfc-profile/ はログイン必須に変更（2026-03-15）
 	const anonymousRoutePrefixes: string[] = [];
 
 	const isAnonymousRoute = (pathname: string) => {
 		if (anonymousRoutes.includes(pathname)) return true;
-		return anonymousRoutePrefixes.some(prefix => pathname.startsWith(prefix));
+		return anonymousRoutePrefixes.some((prefix) => pathname.startsWith(prefix));
 	};
 
 	if (user) {
 		// /reset-password はログイン済みでもアクセスを許可する（パスワード変更のため）
 		const allowedWhenLoggedIn = ['/reset-password'];
-		if (anonymousRoutes.includes(request.nextUrl.pathname) && !allowedWhenLoggedIn.includes(request.nextUrl.pathname)) {
+		if (
+			anonymousRoutes.includes(request.nextUrl.pathname) &&
+			!allowedWhenLoggedIn.includes(request.nextUrl.pathname)
+		) {
 			const url = request.nextUrl.clone();
 			url.pathname = '/';
 			return NextResponse.redirect(url);
@@ -145,7 +158,10 @@ export async function updateSession(request: NextRequest) {
 			const url = request.nextUrl.clone();
 			url.pathname = '/login';
 			// NFCプロフィール等のページからリダイレクトされた場合、ログイン後に元のページに戻れるようにする
-			if (request.nextUrl.pathname.startsWith('/nfc-profile/')) {
+			if (
+				request.nextUrl.pathname.startsWith('/nfc-profile/') ||
+				request.nextUrl.pathname.startsWith('/mypage/profile/')
+			) {
 				url.searchParams.set('redirectTo', request.nextUrl.pathname);
 			}
 			return NextResponse.redirect(url);

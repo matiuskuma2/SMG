@@ -1109,6 +1109,8 @@ export type Database = {
 					user_type: string | null;
 					username: string | null;
 					website_url: string | null;
+					is_partner_tax_accountant: boolean | null;
+					has_mobility_issues: boolean | null;
 				};
 				Insert: {
 					bio?: string | null;
@@ -1156,6 +1158,8 @@ export type Database = {
 					user_type?: string | null;
 					username?: string | null;
 					website_url?: string | null;
+					is_partner_tax_accountant?: boolean | null;
+					has_mobility_issues?: boolean | null;
 				};
 				Update: {
 					bio?: string | null;
@@ -1203,6 +1207,8 @@ export type Database = {
 					user_type?: string | null;
 					username?: string | null;
 					website_url?: string | null;
+					is_partner_tax_accountant?: boolean | null;
+					has_mobility_issues?: boolean | null;
 				};
 				Relationships: [
 					{
@@ -2435,6 +2441,60 @@ export type Database = {
 						isOneToOne: false;
 						referencedRelation: 'mst_radio';
 						referencedColumns: ['radio_id'];
+					},
+				];
+			};
+			trn_seating_assignment: {
+				Row: {
+					assignment_id: string;
+					event_id: string;
+					user_id: string;
+					table_number: number;
+					round_number: number;
+					is_fixed: boolean;
+					is_accessible_seat: boolean;
+					created_at: string | null;
+					updated_at: string | null;
+					deleted_at: string | null;
+				};
+				Insert: {
+					assignment_id?: string;
+					event_id: string;
+					user_id: string;
+					table_number: number;
+					round_number?: number;
+					is_fixed?: boolean;
+					is_accessible_seat?: boolean;
+					created_at?: string | null;
+					updated_at?: string | null;
+					deleted_at?: string | null;
+				};
+				Update: {
+					assignment_id?: string;
+					event_id?: string;
+					user_id?: string;
+					table_number?: number;
+					round_number?: number;
+					is_fixed?: boolean;
+					is_accessible_seat?: boolean;
+					created_at?: string | null;
+					updated_at?: string | null;
+					deleted_at?: string | null;
+				};
+				Relationships: [
+					{
+						foreignKeyName: 'trn_seating_assignment_event_id_fkey';
+						columns: ['event_id'];
+						isOneToOne: false;
+						referencedRelation: 'mst_event';
+						referencedColumns: ['event_id'];
+					},
+					{
+						foreignKeyName: 'trn_seating_assignment_user_id_fkey';
+						columns: ['user_id'];
+						isOneToOne: false;
+						referencedRelation: 'mst_user';
+						referencedColumns: ['user_id'];
 					},
 				];
 			};
@@ -3735,6 +3795,13 @@ export type InsertTrnRadioVisibleGroup =
 	Database['public']['Tables']['trn_radio_visible_group']['Insert'];
 export type UpdateTrnRadioVisibleGroup =
 	Database['public']['Tables']['trn_radio_visible_group']['Update'];
+
+export type TrnSeatingAssignment =
+	Database['public']['Tables']['trn_seating_assignment']['Row'];
+export type InsertTrnSeatingAssignment =
+	Database['public']['Tables']['trn_seating_assignment']['Insert'];
+export type UpdateTrnSeatingAssignment =
+	Database['public']['Tables']['trn_seating_assignment']['Update'];
 
 export type TrnReceiptHistory =
 	Database['public']['Tables']['trn_receipt_history']['Row'];

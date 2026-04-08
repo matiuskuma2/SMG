@@ -1,7 +1,7 @@
 'use client';
 
-import { useFilteredRoutes } from '@/hooks/useFilteredRoutes';
 import { useBreakpoints } from '@/hooks/use-breakpoints';
+import { useFilteredRoutes } from '@/hooks/useFilteredRoutes';
 import { css, cx, sva } from '@/styled-system/css';
 import { Flex, styled } from '@/styled-system/jsx';
 import type { BreakpointToken } from '@/styled-system/tokens';
@@ -11,7 +11,7 @@ import { Portal } from '@ark-ui/react/portal';
 import { Sawarabi_Mincho } from 'next/font/google';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useMemo, useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { LuAlignJustify, LuX } from 'react-icons/lu';
 import { ROUTE_DEFINITION } from '../const';
 
@@ -61,7 +61,11 @@ export const Drawer = () => {
 								<DrawerItem key={d.href}>
 									{d.linkType === 'external' ? (
 										<Dialog.CloseTrigger asChild>
-											<a href={d.href} target="_blank" rel="noopener noreferrer">
+											<a
+												href={d.href}
+												target="_blank"
+												rel="noopener noreferrer"
+											>
 												{d.label}
 											</a>
 										</Dialog.CloseTrigger>
@@ -89,7 +93,10 @@ const DrawerItem = styled('div', {
 export const Information = () => {
 	// フォールバックバナー（DBが未設定の場合に使用）
 	const fallbackBanners = [
-		{ src: '/top/banners/2_0.png', href: '/notice/23db5fa0-6554-4e37-a176-07ec34e41b64' },
+		{
+			src: '/top/banners/2_0.png',
+			href: '/notice/23db5fa0-6554-4e37-a176-07ec34e41b64',
+		},
 		{ src: '/top/banners/3_0.png', href: '/beginner' },
 		{ src: '/top/banners/4_0.png', href: '/events' },
 		{ src: '/top/banners/5_0.png', href: '/archive' },
@@ -128,14 +135,14 @@ export const Information = () => {
 			slidesPerPage={{
 				'2xs': 1,
 				xs: 1,
-				sm: 1.5,
+				sm: 1,
 				md: 2,
-				lg: 2.3,
-				xl: 2.5,
-				'2xl': 2.8,
+				lg: 2,
+				xl: 2,
+				'2xl': 3,
 			}}
 			slidesPerMove={1}
-			defaultPage={1}
+			defaultPage={0}
 			slideCount={banners.length}
 		>
 			<Carousel.ItemGroup>
