@@ -3,7 +3,51 @@
 import dynamic from 'next/dynamic';
 import type { FC } from 'react';
 
-const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
+const ReactQuill = dynamic(
+  async () => {
+    const { default: RQ } = await import('react-quill-new');
+    const { default: QuillLib } = await import('quill');
+
+    // カスタムImageFormatを登録して、style属性（画像サイズ等）を保持する
+    // biome-ignore lint/suspicious/noExplicitAny: Quillの型定義の制限により必要
+    const ImageBlot = QuillLib.import('formats/image') as any;
+    class CustomImageFormat extends ImageBlot {
+      static formats(domNode: HTMLElement) {
+        return {
+          alt: domNode.getAttribute('alt'),
+          height: domNode.getAttribute('height'),
+          width: domNode.getAttribute('width'),
+          style: domNode.getAttribute('style'),
+        };
+      }
+
+      format(name: string, value: string) {
+        if (
+          name === 'alt' ||
+          name === 'height' ||
+          name === 'width' ||
+          name === 'style'
+        ) {
+          if (value) {
+            // biome-ignore lint/suspicious/noExplicitAny: domNodeプロパティへのアクセスに必要
+            (this as any).domNode.setAttribute(name, value);
+          } else {
+            // biome-ignore lint/suspicious/noExplicitAny: domNodeプロパティへのアクセスに必要
+            (this as any).domNode.removeAttribute(name);
+          }
+        } else {
+          super.format(name, value);
+        }
+      }
+    }
+
+    // biome-ignore lint/suspicious/noExplicitAny: Quillのregister関数の型定義の制限により必要
+    QuillLib.register(CustomImageFormat as any, true);
+
+    return RQ;
+  },
+  { ssr: false },
+);
 import 'react-quill-new/dist/quill.snow.css';
 
 interface RichTextViewerProps {
@@ -58,6 +102,10 @@ export const RichTextViewer: FC<RichTextViewerProps> = ({
           word-wrap: break-word !important;
           word-break: break-word !important;
           overflow-wrap: break-word !important;
+        }
+        .rich-text-viewer .ql-editor img {
+          max-width: 100%;
+          height: auto;
         }
       `}</style>
     </div>
