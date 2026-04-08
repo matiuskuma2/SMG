@@ -4,6 +4,7 @@ import { NoticeForm } from '@/components/notice/NoticeForm';
 import type { NoticeFile, NoticeFormData } from '@/components/notice/types';
 import { createClient } from '@/lib/supabase/client';
 import { getReturnQuery } from '@/utils/navigation';
+import { jstToUtc, utcToJst } from '@/utils/date';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -80,10 +81,10 @@ export default function MasterCourseEditPage() {
           content: data.content,
           category_id: data.category_id,
           publish_start_at: data.publish_start_at
-            ? new Date(data.publish_start_at).toISOString().slice(0, 16)
-            : new Date().toISOString().slice(0, 16),
+            ? utcToJst(data.publish_start_at)
+            : utcToJst(new Date().toISOString()),
           publish_end_at: data.publish_end_at
-            ? new Date(data.publish_end_at).toISOString().slice(0, 16)
+            ? utcToJst(data.publish_end_at)
             : null,
           visible_group_ids: visibleGroupIds,
           files: noticeFiles,
@@ -110,10 +111,10 @@ export default function MasterCourseEditPage() {
         content: data.content,
         category_id: data.category_id || null,
         publish_start_at: data.publish_start_at
-          ? new Date(data.publish_start_at).toISOString()
+          ? jstToUtc(data.publish_start_at)
           : null,
         publish_end_at: data.publish_end_at
-          ? new Date(data.publish_end_at).toISOString()
+          ? jstToUtc(data.publish_end_at)
           : null,
         is_draft: isDraft,
         updated_at: new Date().toISOString(),

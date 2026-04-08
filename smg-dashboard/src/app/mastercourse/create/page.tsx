@@ -3,6 +3,7 @@
 import { NoticeForm } from '@/components/notice/NoticeForm';
 import type { NoticeFormData } from '@/components/notice/types';
 import { createClient } from '@/lib/supabase/client';
+import { jstToUtc } from '@/utils/date';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
@@ -24,10 +25,10 @@ export default function MasterCourseCreatePage() {
         content: data.content,
         category_id: data.category_id || null,
         publish_start_at: data.publish_start_at
-          ? new Date(data.publish_start_at).toISOString()
+          ? jstToUtc(data.publish_start_at)
           : null,
         publish_end_at: data.publish_end_at
-          ? new Date(data.publish_end_at).toISOString()
+          ? jstToUtc(data.publish_end_at)
           : null,
         is_draft: isDraft,
         created_at: new Date().toISOString(),

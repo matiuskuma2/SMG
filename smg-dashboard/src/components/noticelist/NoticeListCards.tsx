@@ -155,7 +155,7 @@ export const NoticeListCards: React.FC<NoticeListCardsProps> = ({
               </div>
               <div className={css({ fontSize: 'sm' })}>
                 {notice.publish_start_at && notice.publish_end_at
-                  ? `${new Date(notice.publish_start_at).toLocaleDateString('ja-JP')} - ${new Date(notice.publish_end_at).toLocaleDateString('ja-JP')}`
+                  ? `${new Date(notice.publish_start_at).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' })} - ${new Date(notice.publish_end_at).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' })}`
                   : '-'}
               </div>
             </div>

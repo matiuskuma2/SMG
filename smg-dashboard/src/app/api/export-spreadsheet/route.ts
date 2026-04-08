@@ -3,6 +3,7 @@ import type {
   IndividualConsultationFormType,
   Participant,
 } from '@/types/individualConsultation';
+import { formatIsoDate } from '@/utils/date';
 import type { JWT } from 'google-auth-library';
 import { google } from 'googleapis';
 import { NextResponse } from 'next/server';
@@ -259,10 +260,10 @@ export async function POST(req: Request) {
           p.phone_number,
           p.user_type,
           p.firstTime ? '初回' : '再訪',
-          selectedDate,
-          sortedDates[0]?.schedule_datetime || '',
-          sortedDates[1]?.schedule_datetime || '',
-          sortedDates[2]?.schedule_datetime || '',
+          selectedDate ? formatIsoDate(selectedDate) : '',
+          sortedDates[0]?.schedule_datetime ? formatIsoDate(sortedDates[0].schedule_datetime) : '',
+          sortedDates[1]?.schedule_datetime ? formatIsoDate(sortedDates[1].schedule_datetime) : '',
+          sortedDates[2]?.schedule_datetime ? formatIsoDate(sortedDates[2].schedule_datetime) : '',
           p.remarks || '',
           ...getAnswerColumns(p.application_id),
         ];

@@ -132,7 +132,7 @@ export const NoticeListTable: React.FC<NoticeListTableProps> = ({
                 </td>
                 <td className={cellStyle}>
                   {notice.publish_start_at && notice.publish_end_at
-                    ? `${new Date(notice.publish_start_at).toLocaleDateString('ja-JP')} - ${new Date(notice.publish_end_at).toLocaleDateString('ja-JP')}`
+                    ? `${new Date(notice.publish_start_at).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' })} - ${new Date(notice.publish_end_at).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' })}`
                     : '-'}
                 </td>
                 <td className={cellStyle}>
