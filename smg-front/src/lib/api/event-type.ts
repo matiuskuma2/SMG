@@ -30,13 +30,11 @@ export async function getEventTypes(): Promise<EventTypeOption[]> {
 			return [];
 		}
 
-		// show_in_event_listがtrueのもの（nullの場合はデフォルトtrueとして扱う）
-		return (data || [])
-			.filter((item) => item.show_in_event_list !== false)
-			.map((item) => ({
-				id: item.event_type_id,
-				name: item.event_type_name,
-			}));
+		// すべてのイベントタイプを返す
+		return (data || []).map((item) => ({
+			id: item.event_type_id,
+			name: item.event_type_name,
+		}));
 	} catch (error) {
 		console.warn('イベントタイプの取得でエラーが発生しました:', error);
 		return [];
