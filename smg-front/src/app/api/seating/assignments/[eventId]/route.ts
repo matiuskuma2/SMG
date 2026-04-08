@@ -86,7 +86,7 @@ export async function GET(
 
 		// テーブルごとにグループ化
 		const tableMap: Record<number, any[]> = {};
-		for (const assignment of assignments) {
+		for (const assignment of assignments as any[]) {
 			const tableNumber = assignment.table_number;
 			if (!tableMap[tableNumber]) {
 				tableMap[tableNumber] = [];

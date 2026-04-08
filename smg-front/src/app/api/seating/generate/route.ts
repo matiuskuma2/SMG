@@ -95,8 +95,23 @@ export async function POST(request: Request) {
 			);
 		}
 
+		// ヘルパー関数: 空きがあるテーブルを見つける
+		const findAvailableTable = (
+			currentAssignments: { table_number: number }[],
+			totalTables: number,
+			seatsPerTable: number
+		): number | null => {
+			for (let tableNum = 1; tableNum <= totalTables; tableNum++) {
+				const tableAssignments = currentAssignments.filter((a) => a.table_number === tableNum);
+				if (tableAssignments.length < seatsPerTable) {
+					return tableNum;
+				}
+			}
+			return null;
+		};
+
 		// ユーザー情報を平坦化
-		const users = participants.map((p) => ({
+		const users = participants.map((p: any) => ({
 			user_id: p.user_id,
 			username: p.mst_user?.username || '',
 			nickname: p.mst_user?.nickname || '',
@@ -201,21 +216,6 @@ export async function POST(request: Request) {
 					is_accessible_seat: false,
 				});
 			}
-		}
-
-		// ヘルパー関数: 空きがあるテーブルを見つける
-		function findAvailableTable(
-			currentAssignments: { table_number: number }[],
-			totalTables: number,
-			seatsPerTable: number
-		): number | null {
-			for (let tableNum = 1; tableNum <= totalTables; tableNum++) {
-				const tableAssignments = currentAssignments.filter((a) => a.table_number === tableNum);
-				if (tableAssignments.length < seatsPerTable) {
-					return tableNum;
-				}
-			}
-			return null;
 		}
 
 		// 4. 既存の配席データを削除（論理削除）
