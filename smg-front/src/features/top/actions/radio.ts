@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase-server';
 
 export const fetchRadios = async () => {
-	const client = createClient();
+	const client = await createClient();
 
 	// 認証ユーザーの取得
 	const {

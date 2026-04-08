@@ -15,7 +15,7 @@ const EVENT_TYPE_NAMES = [
 const BOOKKEEPING_GROUP_NAME = '簿記3期';
 
 export const fetchEvents = async () => {
-	const client = createClient();
+	const client = await createClient();
 	const {
 		data: { user },
 		error,

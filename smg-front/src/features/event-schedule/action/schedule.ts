@@ -45,7 +45,7 @@ export const fetchEventSchedules = async (
 	const startDate = options?.startDate ?? targetMonth.startOf('month');
 	const endDate = options?.endDate ?? targetMonth.endOf('month');
 
-	const client = createClient();
+	const client = await createClient();
 	const {
 		data: { user },
 	} = await client.auth.getUser();
