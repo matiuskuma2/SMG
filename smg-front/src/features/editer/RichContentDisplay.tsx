@@ -130,6 +130,11 @@ export const RichContentDisplay = ({
 						'& .ql-editor a:hover': {
 							color: '#1d4ed8',
 						},
+						'& .ql-editor img': {
+							maxWidth: '100%',
+							height: 'auto',
+							cursor: 'pointer',
+						},
 					})}
 				>
 					<ReactQuill
