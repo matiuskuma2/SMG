@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     // 認証チェック（ログインユーザーのみアクセス可能）
-    const supabaseAuth = createClient();
+    const supabaseAuth = await createClient();
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
     
     if (authError || !user) {
