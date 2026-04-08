@@ -80,6 +80,11 @@ export const Archive = () => {
 					})}
 				>
 					<ArchiveItem
+						type="定例会"
+						imageUrl={'/top/archive/regular.png'}
+						href={'/archive/tabs/regular'}
+					/>
+					<ArchiveItem
 						type="オンラインセミナー"
 						imageUrl={'/top/archive/online-seminar.png'}
 						href={'/archive/tabs/online-seminar'}
@@ -103,11 +108,6 @@ export const Archive = () => {
 						type="簿記講座"
 						imageUrl={'/top/archive/bookkeeping.png'}
 						href={'/archive/tabs/bookkeeping'}
-					/>
-					<ArchiveItem
-						type="定例会"
-						imageUrl={'/top/archive/regular.png'}
-						href={'/archive/tabs/regular'}
 					/>
 					<ArchiveItem
 						type="グループ相談会"
