@@ -137,7 +137,7 @@ export async function POST(req: Request) {
             .get(ans.user_id)!
             .set(
               ans.question_id,
-              formatAnswer(ans.answer, question?.question_type),
+              formatAnswer(ans.answer as Parameters<typeof formatAnswer>[0], question?.question_type),
             );
         }
       }
