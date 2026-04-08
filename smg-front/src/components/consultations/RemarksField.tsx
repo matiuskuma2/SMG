@@ -31,14 +31,14 @@ export function RemarksField({ remarks, setRemarks }: RemarksFieldProps) {
   return (
     <div className={formGroupStyles}>
       <Label htmlFor="remarks" className={labelStyles}>
-        備考欄（ご希望の具体的な時間帯や相談内容の概要などをご記入ください）
+        備考欄（ご希望の具体的な時間帯等がありましたら、ご記入ください）
       </Label>
       <textarea
         id="remarks"
         className={textareaStyles}
         value={remarks}
         onChange={(e) => setRemarks(e.target.value)}
-        placeholder="選択した日程の中で、ご希望の具体的な時間帯や相談したい内容について簡単にお書きください"
+        placeholder="選択した日程の中で、ご希望の具体的な時間帯などありましたら、お書きください。"
       />
     </div>
   );
