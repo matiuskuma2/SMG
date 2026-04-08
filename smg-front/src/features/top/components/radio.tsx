@@ -19,14 +19,8 @@ export const Radio = async () => {
 	return (
 		<Container
 			className={css({
-				backgroundImage: {
-					base: 'url(/top/bg-radio-pc.png)',
-					mdDown: 'url(/top/bg-radio.png)',
-				},
+				bg: '#16213e',
 				color: 'white',
-				backgroundPositionX: 'center',
-				backgroundSize: 'cover',
-				backgroundRepeat: 'no-repeat',
 				h: {
 					base: '600px',
 					mdDown: 'auto',

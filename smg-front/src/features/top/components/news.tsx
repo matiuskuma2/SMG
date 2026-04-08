@@ -17,14 +17,8 @@ export const News = async () => {
 	return (
 		<Container
 			className={css({
-				backgroundImage: {
-					base: 'url(/top/bg-news-pc.png)',
-					mdDown: 'url(/top/bg-news.png)',
-				},
+				bg: '#1a1a2e',
 				color: 'white',
-				backgroundPositionX: 'center',
-				backgroundSize: 'cover',
-				backgroundRepeat: 'no-repeat',
 				display: 'grid',
 				placeItems: 'center',
 			})}
