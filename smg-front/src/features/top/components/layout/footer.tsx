@@ -178,12 +178,7 @@ export const PCFooter = () => (
 							<Link href="/archive/tabs/five-cities">- グループ相談会</Link>
 						</Li>
 						<Li>
-							<Link href="/archive/tabs/online-seminar">
-								- オンラインセミナー
-							</Link>
-						</Li>
-						<Li>
-							<Link href="/archive/tabs/special-seminar">- 特別セミナー</Link>
+							<Link href="/archive/tabs/seminar">- セミナー</Link>
 						</Li>
 						<Li>
 							<Link href="/archive/tabs/photos">- 写真</Link>

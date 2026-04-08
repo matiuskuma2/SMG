@@ -85,14 +85,9 @@ export const Archive = () => {
 						href={'/archive/tabs/regular'}
 					/>
 					<ArchiveItem
-						type="オンラインセミナー"
+						type="セミナー"
 						imageUrl={'/top/archive/online-seminar.png'}
-						href={'/archive/tabs/online-seminar'}
-					/>
-					<ArchiveItem
-						type="特別セミナー"
-						imageUrl={'/top/archive/special-seminar.png'}
-						href={'/archive/tabs/special-seminar'}
+						href={'/archive/tabs/seminar'}
 					/>
 					<ArchiveItem
 						type="写真"

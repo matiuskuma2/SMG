@@ -15,11 +15,20 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 export default function ArchiveTabPage() {
 	const params = useParams();
-	const tabId = params.tabId as string;
+	const rawTabId = params.tabId as string;
+	const router = useRouter();
+
+	// 旧URL（online-seminar / special-seminar）→ 統合タブ（seminar）へリダイレクト
+	useEffect(() => {
+		if (rawTabId === 'online-seminar' || rawTabId === 'special-seminar') {
+			router.replace('/archive/tabs/seminar');
+		}
+	}, [rawTabId, router]);
+
+	const tabId = (rawTabId === 'online-seminar' || rawTabId === 'special-seminar') ? 'seminar' : rawTabId;
 	const [yearFilter, setYearFilter] = useState('');
 	const [themeFilter, setThemeFilter] = useState('');
 	const [sortOrder, setSortOrder] = useState('newest');
-	const router = useRouter();
 	const searchParams = useSearchParams();
 	const currentPage = useMemo(() => {
 		const pageParam = searchParams.get('page');
@@ -46,8 +55,7 @@ export default function ArchiveTabPage() {
 		const validTabTypes = [
 			'regular',
 			'bookkeeping',
-			'online-seminar',
-			'special-seminar',
+			'seminar',
 			'five-cities',
 			'photos',
 			'newsletter',
@@ -60,8 +68,7 @@ export default function ArchiveTabPage() {
 		getTabType() as
 			| 'regular'
 			| 'bookkeeping'
-			| 'online-seminar'
-			| 'special-seminar'
+			| 'seminar'
 			| 'five-cities'
 			| 'photos'
 			| 'newsletter'
@@ -113,11 +120,8 @@ export default function ArchiveTabPage() {
 			case '簿記講座':
 				tabPath = 'bookkeeping';
 				break;
-			case 'オンラインセミナー':
-				tabPath = 'online-seminar';
-				break;
-			case '特別セミナー':
-				tabPath = 'special-seminar';
+			case 'セミナー':
+				tabPath = 'seminar';
 				break;
 			case '写真':
 				tabPath = 'photos';

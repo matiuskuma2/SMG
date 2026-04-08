@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase'
 import { PostgrestError } from '@supabase/supabase-js'
 import { Archive } from '@/components/archive/types'
 
-export const useArchives = (tabType?: 'regular' | 'bookkeeping' | 'online-seminar' | 'special-seminar' | 'five-cities' | 'photos' | 'newsletter' | 'sawabe-instructor', year?: string, sortOrder: 'newest' | 'oldest' = 'newest', page?: number, pageSize: number = 10, themeId?: string) => {
+export const useArchives = (tabType?: 'regular' | 'bookkeeping' | 'seminar' | 'five-cities' | 'photos' | 'newsletter' | 'sawabe-instructor', year?: string, sortOrder: 'newest' | 'oldest' = 'newest', page?: number, pageSize: number = 10, themeId?: string) => {
   const [archives, setArchives] = useState<Archive[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<PostgrestError | null>(null)
@@ -41,6 +41,7 @@ export const useArchives = (tabType?: 'regular' | 'bookkeeping' | 'online-semina
 
         // タブタイプに応じて必要なIDを事前取得
         let targetEventTypeId: string | undefined;
+        let targetSeminarTypeIds: string[] = [];
         let targetArchiveTypeId: string | undefined;
 
         // 沢辺講師タブの場合は先にarchive_idを取得
@@ -77,24 +78,33 @@ export const useArchives = (tabType?: 'regular' | 'bookkeeping' | 'online-semina
 
         if (tabType) {
           // イベント系タブの場合、イベントタイプIDを取得
-          if (['regular', 'bookkeeping', 'online-seminar', 'special-seminar', 'five-cities'].includes(tabType)) {
-            const eventTypeNameMap = {
-              'regular': '定例会',
-              'bookkeeping': '簿記講座',
-              'online-seminar': 'オンラインセミナー',
-              'special-seminar': '特別セミナー',
-              'five-cities': '5大都市グループ相談会&交流会'
-            };
-            const eventTypeName = eventTypeNameMap[tabType as keyof typeof eventTypeNameMap];
+          if (['regular', 'bookkeeping', 'seminar', 'five-cities'].includes(tabType)) {
+            // セミナータブはオンラインセミナー＋特別セミナーの両方を取得
+            if (tabType === 'seminar') {
+              const { data: seminarTypes } = await supabase
+                .from('mst_event_type')
+                .select('event_type_id')
+                .in('event_type_name', ['オンラインセミナー', '特別セミナー'])
+                .is('deleted_at', null);
 
-            const { data: eventTypeData } = await supabase
-              .from('mst_event_type')
-              .select('event_type_id')
-              .eq('event_type_name', eventTypeName)
-              .is('deleted_at', null)
-              .single();
+              targetSeminarTypeIds = seminarTypes?.map(t => t.event_type_id) || [];
+            } else {
+              const eventTypeNameMap = {
+                'regular': '定例会',
+                'bookkeeping': '簿記講座',
+                'five-cities': '5大都市グループ相談会&交流会'
+              };
+              const eventTypeName = eventTypeNameMap[tabType as keyof typeof eventTypeNameMap];
 
-            targetEventTypeId = eventTypeData?.event_type_id;
+              const { data: eventTypeData } = await supabase
+                .from('mst_event_type')
+                .select('event_type_id')
+                .eq('event_type_name', eventTypeName)
+                .is('deleted_at', null)
+                .single();
+
+              targetEventTypeId = eventTypeData?.event_type_id;
+            }
           }
           // アーカイブ系タブの場合、アーカイブタイプIDを取得
           else if (['photos', 'newsletter'].includes(tabType)) {
@@ -148,7 +158,10 @@ export const useArchives = (tabType?: 'regular' | 'bookkeeping' | 'online-semina
           .or('publish_end_at.is.null,publish_end_at.gt.' + nowUTC)
 
         // タブタイプによる最適化されたフィルタリング
-        if (targetEventTypeId) {
+        if (targetSeminarTypeIds.length > 0) {
+          // セミナータブ: オンラインセミナー＋特別セミナーの両方のevent_type_idで絞り込み
+          query = query.in('event_type_id', targetSeminarTypeIds).is('type_id', null)
+        } else if (targetEventTypeId) {
           // イベント系タブ: event_type_idで絞り込み、かつtype_idがnull（写真などのアーカイブタイプが設定されていないもの）
           query = query.eq('event_type_id', targetEventTypeId).is('type_id', null)
         } else if (targetArchiveTypeId) {

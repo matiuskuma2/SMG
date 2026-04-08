@@ -14,10 +14,8 @@ export default function ArchiveTabs({ tabId, handleTabChange }: ArchiveTabsProps
         return '定例会'
       case 'bookkeeping':
         return '簿記講座'
-      case 'online-seminar':
-        return 'オンラインセミナー'
-      case 'special-seminar':
-        return '特別セミナー'
+      case 'seminar':
+        return 'セミナー'
       case 'photos':
         return '写真'
       case 'newsletter':
@@ -31,7 +29,7 @@ export default function ArchiveTabs({ tabId, handleTabChange }: ArchiveTabsProps
     }
   }
 
-  const tabs = ['定例会', '簿記講座', 'グループ相談会', 'オンラインセミナー', '特別セミナー', '写真', 'ニュースレター', '沢辺講師']
+  const tabs = ['定例会', '簿記講座', 'グループ相談会', 'セミナー', '写真', 'ニュースレター', '沢辺講師']
 
   return (
     <div className={css({ 
