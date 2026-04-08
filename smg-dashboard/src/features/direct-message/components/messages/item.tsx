@@ -332,7 +332,7 @@ export const MessageItem = ({ msg }: MessageItemProps) => {
                         wordBreak: 'break-word',
                       })}
                     >
-                      <LinkifiedText text={msg.content} isMe={msg.isMe} />
+                      <LinkifiedText text={msg.content ?? ''} isMe={msg.isMe} />
                     </div>
                   </div>
                 )}
@@ -359,7 +359,7 @@ export const MessageItem = ({ msg }: MessageItemProps) => {
                     wordBreak: 'break-word',
                   })}
                 >
-                  <LinkifiedText text={msg.content} isMe={msg.isMe} />
+                  <LinkifiedText text={msg.content ?? ''} isMe={msg.isMe} />
                 </div>
               </div>
             )}
