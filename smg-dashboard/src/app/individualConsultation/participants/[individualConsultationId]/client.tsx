@@ -108,6 +108,7 @@ export function ParticipantsClientPage({
         {/* フィルタ・アクションボタン */}
         <ParticipantsTabs
           participants={currentPageData}
+          allParticipants={filteredAndSortedParticipants}
           individualConsultation={consultationData}
           sortOrder={sortOrder}
           setSortOrder={setSortOrder}

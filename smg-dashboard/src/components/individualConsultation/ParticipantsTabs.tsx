@@ -10,6 +10,7 @@ import { FaSearch } from 'react-icons/fa';
 interface ParticipantsTabsProps {
   individualConsultation: IndividualConsultationFormType;
   participants: Participant[];
+  allParticipants: Participant[];
   sortOrder: 'asc' | 'desc';
   setSortOrder: (val: 'asc' | 'desc') => void;
   searchInput: string;
@@ -20,6 +21,7 @@ interface ParticipantsTabsProps {
 export const ParticipantsTabs = ({
   individualConsultation,
   participants,
+  allParticipants,
   sortOrder,
   setSortOrder,
   searchInput,
@@ -37,7 +39,7 @@ export const ParticipantsTabs = ({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ participants, individualConsultation }),
+        body: JSON.stringify({ participants: allParticipants, individualConsultation }),
       });
 
       if (!response.ok) {
