@@ -218,7 +218,7 @@ export const fetchEventSchedules = async (
 };
 
 export const fetchEventType = async () => {
-	const client = createClient();
+	const client = await createClient();
 	const { data, error } = await client
 		.from('mst_event_type')
 		.select('id:event_type_id, name:event_type_name')
@@ -231,7 +231,7 @@ export const fetchEventType = async () => {
 };
 
 export const fetchEventCity = async () => {
-	const client = createClient();
+	const client = await createClient();
 	const { data, error } = await client.rpc('get_event_city');
 
 	if (!data || error) return [];
