@@ -73,7 +73,7 @@ export async function POST(request: Request) {
           );
         }
 
-        const supabase = createClient();
+        const supabase = await createClient();
 
         // メールアドレスからユーザーIDを取得し、未決済グループに既に所属しているかチェック
         const { data: userData, error: userError } = await supabase
@@ -189,7 +189,7 @@ export async function POST(request: Request) {
           );
         }
 
-        const supabase = createClient();
+        const supabase = await createClient();
 
         // メールアドレスからユーザーIDを取得
         const { data: userData, error: userError } = await supabase

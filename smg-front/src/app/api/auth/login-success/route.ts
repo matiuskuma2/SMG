@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ユーザー情報を取得
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: userData, error: userError } = await supabase
       .from('mst_user')
       .select('email, username')

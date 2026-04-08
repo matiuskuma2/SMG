@@ -3,7 +3,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const userData = await request.json();
 
     // クライアント側でのユーザー作成（メール認証が必要）

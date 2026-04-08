@@ -10,7 +10,7 @@ const MemberLayout = async ({
 }: Readonly<{
 	children: React.ReactNode;
 }>) => {
-	const supabase = createClient();
+	const supabase = await createClient();
 
 	// ミドルウェアですでに認証チェックが完了しているため、ここでは最小限の処理のみ行う
 	// user情報のみ必要な場合はgetSessionを使用

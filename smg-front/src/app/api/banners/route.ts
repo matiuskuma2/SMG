@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 // フロント用バナー一覧取得（公開・有効なバナーのみ）
 export async function GET() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { data: banners, error } = await (supabase as any)
       .from('mst_banner')

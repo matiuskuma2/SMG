@@ -48,7 +48,7 @@ interface ProfileUpdateRequest {
 
 export async function PUT(request: NextRequest) {
 	try {
-		const supabase = createClient();
+		const supabase = await createClient();
 
 		// 認証されたユーザーを取得
 		const {

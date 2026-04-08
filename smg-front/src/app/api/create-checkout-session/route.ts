@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     const { event_id, selectedTypes, participationType, questionAnswers, isUrgent, isFirstConsultation } = body;
 
     // Supabaseクライアントの作成
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // イベントの情報を取得
     const { data: eventData, error: eventError } = await supabase

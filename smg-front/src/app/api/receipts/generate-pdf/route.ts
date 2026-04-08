@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		const supabase = createClient();
+		const supabase = await createClient();
 
 		// 支払い情報を取得（金額はサーバー側で取得して改ざん防止）
 		const { data, error } = await supabase

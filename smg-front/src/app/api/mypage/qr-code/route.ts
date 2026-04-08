@@ -15,7 +15,7 @@ interface SmoothInAPIResponse {
 
 export async function GET() {
 	try {
-		const supabase = createClient();
+		const supabase = await createClient();
 
 		// 認証されたユーザーを取得
 		const {

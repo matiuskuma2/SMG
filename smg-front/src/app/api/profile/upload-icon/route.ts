@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
 	try {
-		const supabase = createClient();
+		const supabase = await createClient();
 
 		// 認証されたユーザーを取得
 		const {

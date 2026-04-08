@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // ユーザー情報を取得
     const { data: userData, error: userError } = await supabase

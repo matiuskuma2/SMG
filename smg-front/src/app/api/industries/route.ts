@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
 	try {
-		const supabase = createClient();
+		const supabase = await createClient();
 
 		// 業界一覧を取得
 		const { data: industries, error } = await supabase
