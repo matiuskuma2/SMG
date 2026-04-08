@@ -4,6 +4,7 @@ import type { Event } from '@/components/event/types';
 import { EventListCards } from '@/components/eventlist/EventListCards';
 import { EventListFooter } from '@/components/eventlist/EventListFooter';
 import { EventListHeader } from '@/components/eventlist/EventListHeader';
+import { EventTypeSettingsDialog } from '@/components/eventlist/EventTypeSettingsDialog';
 import { EventListSearch } from '@/components/eventlist/EventListSearch';
 import { EventListTable } from '@/components/eventlist/EventListTable';
 import { DeleteConfirmModal } from '@/components/ui/DeleteConfirmModal';
@@ -37,6 +38,9 @@ function EventListContent() {
   // モーダル用の状態を追加
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<string | null>(null);
+
+  // イベントタイプ表示設定ダイアログ
+  const [isTypeSettingsOpen, setIsTypeSettingsOpen] = useState(false);
 
   // URLからパラメータを取得し、状態を初期化
   useEffect(() => {
@@ -442,7 +446,10 @@ function EventListContent() {
           })}
         >
           {/* ヘッダー部分 */}
-          <EventListHeader handleCreateEvent={handleCreateEvent} />
+          <EventListHeader
+            handleCreateEvent={handleCreateEvent}
+            onOpenTypeSettings={() => setIsTypeSettingsOpen(true)}
+          />
 
           {/* 検索・アクション部分 */}
           <EventListSearch
@@ -483,6 +490,11 @@ function EventListContent() {
             onPageChange={handlePageChange}
           />
         </div>
+
+        <EventTypeSettingsDialog
+          isOpen={isTypeSettingsOpen}
+          onClose={() => setIsTypeSettingsOpen(false)}
+        />
 
         <DeleteConfirmModal
           isOpen={isDeleteModalOpen}

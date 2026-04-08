@@ -244,14 +244,16 @@ export async function getEvents(
 		}
 	}
 
-	// 簿記講座のイベントタイプIDを取得
-	const { data: bookkeepingTypeData } = await supabase
+	// show_in_event_listがfalseのイベントタイプIDを取得（一覧から除外する対象）
+	const { data: excludedTypeData } = await supabase
 		.from('mst_event_type')
 		.select('event_type_id')
-		.eq('event_type_name', '簿記講座')
+		.eq('show_in_event_list', false)
 		.is('deleted_at', null);
 
-	const bookkeepingTypeId = bookkeepingTypeData?.[0]?.event_type_id || '';
+	const excludedTypeIds = (excludedTypeData || []).map(
+		(item) => item.event_type_id,
+	);
 
 	// グループ制限があるイベントIDを取得
 	const { data: restrictedEvents, error: restrictedError } = await supabase
@@ -327,11 +329,19 @@ export async function getEvents(
     `,
 			{ count: 'exact' },
 		)
-		.neq('event_type', bookkeepingTypeId) // 簿記講座を除外
 		.is('deleted_at', null)
 		.eq('is_draft', false)
 		.lte('publish_start_at', new Date().toISOString())
 		.gte('publish_end_at', new Date().toISOString());
+
+	// show_in_event_listがfalseのイベントタイプを除外
+	if (excludedTypeIds.length > 0) {
+		eventQuery = eventQuery.not(
+			'event_type',
+			'in',
+			`(${excludedTypeIds.join(',')})`,
+		);
+	}
 
 	// グループフィルタリング（除外するイベントがある場合）
 	if (excludeEventIds.length > 0) {

@@ -9,7 +9,8 @@ export type EventTypeOption = {
 };
 
 /**
- * 全てのイベントタイプを取得する（簿記講座を除く）
+ * イベント予約一覧に表示するイベントタイプを取得する
+ * show_in_event_listフラグがtrueのイベントタイプのみ返す
  */
 export async function getEventTypes(): Promise<EventTypeOption[]> {
 	const supabase = createClient();
@@ -17,8 +18,7 @@ export async function getEventTypes(): Promise<EventTypeOption[]> {
 	try {
 		const { data, error } = await supabase
 			.from('mst_event_type')
-			.select('event_type_id, event_type_name')
-			.neq('event_type_name', '簿記講座')
+			.select('event_type_id, event_type_name, show_in_event_list')
 			.is('deleted_at', null)
 			.order('created_at');
 
@@ -30,10 +30,13 @@ export async function getEventTypes(): Promise<EventTypeOption[]> {
 			return [];
 		}
 
-		return (data || []).map((item) => ({
-			id: item.event_type_id,
-			name: item.event_type_name,
-		}));
+		// show_in_event_listがtrueのもの（nullの場合はデフォルトtrueとして扱う）
+		return (data || [])
+			.filter((item) => item.show_in_event_list !== false)
+			.map((item) => ({
+				id: item.event_type_id,
+				name: item.event_type_name,
+			}));
 	} catch (error) {
 		console.warn('イベントタイプの取得でエラーが発生しました:', error);
 		return [];
