@@ -10,7 +10,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 const getProfileIcon = async () => {
-	const client = createClient();
+	const client = await createClient();
 	const {
 		data: { user },
 	} = await client.auth.getUser();
