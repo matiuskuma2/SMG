@@ -64,6 +64,9 @@
 | GOOGLE_PRIVATE_KEY | Google API認証 |
 | GOOGLE_FOLDER_ID | Google Drive連携 |
 
+## 引き継ぎドキュメント
+- `docs/member-site-reuse-handover.md` - 別基盤で新しい会員サイトを再構築するための再利用ガイド（依存関係 / API / DB / マイグレーション統合）
+
 ## 主要ページ
 
 ### 会員サイト
