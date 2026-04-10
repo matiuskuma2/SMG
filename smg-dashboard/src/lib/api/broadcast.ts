@@ -67,6 +67,15 @@ export async function createBroadcast(input: BroadcastInput) {
     const broadcastId = broadcast.broadcast_id;
     const createdAt = new Date().toISOString();
 
+    const {
+      data: { user: adminUser },
+      error: adminAuthError,
+    } = await supabase.auth.getUser();
+
+    if (!adminUser || adminAuthError) {
+      throw new Error('Failed to get admin user session for broadcast');
+    }
+
     // 各ユーザーにDMを送信
     if (input.user_ids.length > 0) {
       const dmResults = await Promise.allSettled(
@@ -130,9 +139,10 @@ export async function createBroadcast(input: BroadcastInput) {
             .from('trn_dm_message')
             .insert({
               thread_id: threadId,
-              user_id: userId,
+              // 一斉配信は管理者送信メッセージとして保存する
+              user_id: adminUser.id,
               content: personalizedContent,
-              is_read: false, // 未読
+              is_read: false, // 会員側で未読
               is_sent: true,
               created_at: createdAt,
               updated_at: createdAt,
@@ -141,6 +151,23 @@ export async function createBroadcast(input: BroadcastInput) {
           if (messageError) {
             throw new Error(
               `Failed to send message to user ${userId}: ${messageError.message}`,
+            );
+          }
+
+          // スレッドの最終送信時刻を更新（一覧並び順を安定化）
+          const { error: threadUpdateError } = await supabase
+            .from('mst_dm_thread')
+            .update({
+              last_sent_at: createdAt,
+              // 管理者が送信した配信なので管理者側は既読扱い
+              is_admin_read: true,
+              updated_at: createdAt,
+            })
+            .eq('thread_id', threadId);
+
+          if (threadUpdateError) {
+            throw new Error(
+              `Failed to update thread ${threadId}: ${threadUpdateError.message}`,
             );
           }
 

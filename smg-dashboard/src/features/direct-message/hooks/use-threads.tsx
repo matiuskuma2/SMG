@@ -68,8 +68,18 @@ export const useThreads = () => {
             if (a.is_admin_read !== b.is_admin_read) {
               return a.is_admin_read ? 1 : -1;
             }
-            const aDate = a.last_sent_at || '';
-            const bDate = b.last_sent_at || '';
+            const aDate =
+              a.last_sent_at ||
+              (a as unknown as { allLatestMessageCreatedAt?: string })
+                .allLatestMessageCreatedAt ||
+              a.created_at ||
+              '';
+            const bDate =
+              b.last_sent_at ||
+              (b as unknown as { allLatestMessageCreatedAt?: string })
+                .allLatestMessageCreatedAt ||
+              b.created_at ||
+              '';
             return bDate.localeCompare(aDate);
           });
         });
@@ -99,9 +109,19 @@ export const useThreads = () => {
               return a.is_admin_read ? 1 : -1;
             }
 
-            // last_sent_atで降順ソート（nullは最後）
-            const aDate = a.last_sent_at || '';
-            const bDate = b.last_sent_at || '';
+            // last_sent_at未更新データも考慮してフォールバックソート
+            const aDate =
+              a.last_sent_at ||
+              (a as unknown as { allLatestMessageCreatedAt?: string })
+                .allLatestMessageCreatedAt ||
+              a.created_at ||
+              '';
+            const bDate =
+              b.last_sent_at ||
+              (b as unknown as { allLatestMessageCreatedAt?: string })
+                .allLatestMessageCreatedAt ||
+              b.created_at ||
+              '';
             return bDate.localeCompare(aDate);
           });
         });
@@ -195,7 +215,11 @@ const [ThreadContext, useThreadContext] = createContext<ThreadsContextState>({
 // スレッドが未読かどうかを判定する共通関数
 // is_admin_readがfalseの場合に未読とする
 export const isThreadUnread = (thread: Threads[number]): boolean => {
-  return thread.is_admin_read === false;
+  // 本来は is_admin_read を正とするが、過去データとの整合のため
+  // 会員側最新メッセージの is_read もフォールバック判定に使う
+  return (
+    thread.is_admin_read === false || thread.latestMessage?.is_read === false
+  );
 };
 
 export const ThreadProvider = ({

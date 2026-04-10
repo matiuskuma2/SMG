@@ -58,6 +58,8 @@ export async function POST(request: Request) {
 			threadId = newThread.thread_id;
 		}
 
+		const sentAt = new Date().toISOString();
+
 		// お問い合わせメッセージを作成
 		const { data: message, error: messageError } = await supabase
 			.from('trn_dm_message')
@@ -68,6 +70,8 @@ export async function POST(request: Request) {
 					content: content.trim(),
 					is_sent: true,
 					is_inquiry: true, // お問い合わせフラグをtrueに設定
+					created_at: sentAt,
+					updated_at: sentAt,
 				},
 			])
 			.select()
@@ -79,6 +83,20 @@ export async function POST(request: Request) {
 				{ error: 'お問い合わせの送信に失敗しました。' },
 				{ status: 500 },
 			);
+		}
+
+		// スレッド側の未読・並び順制御カラムを更新
+		const { error: threadUpdateError } = await supabase
+			.from('mst_dm_thread')
+			.update({
+				last_sent_at: sentAt,
+				is_admin_read: false,
+				updated_at: sentAt,
+			})
+			.eq('thread_id', threadId);
+
+		if (threadUpdateError) {
+			console.error('スレッド更新エラー:', threadUpdateError);
 		}
 
 		return NextResponse.json(

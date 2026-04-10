@@ -147,6 +147,24 @@ async function attachLatestMessagesAndTags(
   }));
 }
 
+function sortThreadsForDisplay(threads: Thread[]): Thread[] {
+  return [...threads].sort((a, b) => {
+    const aUnread = a.is_admin_read === false;
+    const bUnread = b.is_admin_read === false;
+
+    if (aUnread !== bUnread) {
+      return aUnread ? -1 : 1;
+    }
+
+    const aLatest =
+      a.last_sent_at || a.allLatestMessageCreatedAt || a.created_at || '';
+    const bLatest =
+      b.last_sent_at || b.allLatestMessageCreatedAt || b.created_at || '';
+
+    return bLatest.localeCompare(aLatest);
+  });
+}
+
 // DMページの初期データを取得（30件）
 export async function fetchDmPageData() {
   const client = createClient();
@@ -287,7 +305,7 @@ export async function fetchMoreThreads(offset: number, limit = 30) {
   const threads = await attachLatestMessagesAndTags(client, threadsData);
 
   return {
-    threads,
+    threads: sortThreadsForDisplay(threads),
     hasMore: offset + limit < total,
     total,
   };
@@ -352,11 +370,12 @@ export async function searchThreadsByUsername(query: string) {
   }
 
   const threads = await attachLatestMessagesAndTags(client, allThreadsData);
+  const sortedThreads = sortThreadsForDisplay(threads);
 
   return {
-    threads,
+    threads: sortedThreads,
     hasMore: false,
-    total: threads.length,
+    total: sortedThreads.length,
   };
 }
 
@@ -398,11 +417,12 @@ export async function searchThreadsByTagId(tagId: string) {
   ];
 
   const threads = await attachLatestMessagesAndTags(client, allThreadsData);
+  const sortedThreads = sortThreadsForDisplay(threads);
 
   return {
-    threads,
+    threads: sortedThreads,
     hasMore: false,
-    total: threads.length,
+    total: sortedThreads.length,
   };
 }
 
@@ -463,7 +483,7 @@ export async function searchThreadsByLabelIds(labelIds: string[]) {
     const labeledThreadIds = (allLabeledThreads || []).map((t) => t.thread_id);
 
     // ラベルが割り当てられていないスレッドを取得
-    let noStatusQuery = client
+    const noStatusQuery = client
       .from('mst_dm_thread')
       .select(THREAD_SELECT)
       .order('last_sent_at', { ascending: false, nullsFirst: false });
@@ -524,11 +544,12 @@ export async function searchThreadsByLabelIds(labelIds: string[]) {
   }
 
   const threads = await attachLatestMessagesAndTags(client, uniqueThreads);
+  const sortedThreads = sortThreadsForDisplay(threads);
 
   return {
-    threads,
+    threads: sortedThreads,
     hasMore: false,
-    total: threads.length,
+    total: sortedThreads.length,
   };
 }
 
