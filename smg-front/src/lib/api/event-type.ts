@@ -10,7 +10,6 @@ export type EventTypeOption = {
 
 /**
  * イベント予約一覧に表示するイベントタイプを取得する
- * show_in_event_listフラグがtrueのイベントタイプのみ返す
  */
 export async function getEventTypes(): Promise<EventTypeOption[]> {
 	const supabase = createClient();
@@ -18,7 +17,7 @@ export async function getEventTypes(): Promise<EventTypeOption[]> {
 	try {
 		const { data, error } = await supabase
 			.from('mst_event_type')
-			.select('event_type_id, event_type_name, show_in_event_list')
+			.select('event_type_id, event_type_name')
 			.is('deleted_at', null)
 			.order('created_at');
 
