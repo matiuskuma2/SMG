@@ -1,26 +1,23 @@
-import { createClient } from '@/lib/supabase-server';
+import { getAuthenticatedClient } from '@/lib/auth-helper';
 import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
 	try {
-		const supabase = await createClient();
-
-		// 認証されたユーザーを取得
-		const {
-			data: { user },
-			error: authError,
-		} = await supabase.auth.getUser();
-
-		if (authError || !user) {
+		// 認証 + Supabaseクライアント取得（Cookie or Bearer 両対応）
+		const authResult = await getAuthenticatedClient();
+		if (authResult.error) {
 			return NextResponse.json(
-				{ error: '認証が必要です' },
-				{ status: 401 }
+				{ error: authResult.error },
+				{ status: authResult.status }
 			);
 		}
+		const { client: supabase, userId } = authResult;
 
 		// ユーザーのプロフィール情報を取得
+		// Bearer経路ではRLSが効かないため user_id フィルタ必須
+		// Cookie経路ではRLSが自動適用されるが、冗長でも安全側に寄せる
 		const { data: profile, error: profileError } = await supabase
 			.from('mst_user')
 			.select(`
@@ -60,7 +57,7 @@ export async function GET(request: NextRequest) {
 				is_company_name_kana_visible,
 				is_profile_public
 			`)
-			.eq('user_id', user.id)
+			.eq('user_id', userId)
 			.single();
 
 		if (profileError) {
