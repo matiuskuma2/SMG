@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase-admin';
-import { createClient } from '@/lib/supabase-server';
+import { getAuthenticatedUser } from '@/lib/auth-helper';
 import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -19,14 +19,12 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request: NextRequest) {
   try {
-    // 認証チェック（ログインユーザーのみアクセス可能）
-    const supabaseAuth = await createClient();
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
-    
-    if (authError || !user) {
+    // 認証チェック（Cookie or Bearer の両方に対応）
+    const authResult = await getAuthenticatedUser();
+    if (authResult.error) {
       return NextResponse.json(
-        { error: '認証が必要です' },
-        { status: 401 }
+        { error: authResult.error },
+        { status: authResult.status }
       );
     }
 
