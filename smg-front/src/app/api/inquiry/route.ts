@@ -5,7 +5,7 @@ export async function POST(request: Request) {
 	try {
 		// 認証 + Supabaseクライアント取得（Cookie or Bearer 両対応）
 		const authResult = await getAuthenticatedClient();
-		if (authResult.error) {
+		if (authResult.error !== undefined) {
 			return NextResponse.json(
 				{ error: authResult.error },
 				{ status: authResult.status },

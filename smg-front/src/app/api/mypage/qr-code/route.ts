@@ -17,7 +17,7 @@ export async function GET() {
 	try {
 		// 認証（Cookie or Bearer 両対応）
 		const authResult = await getAuthenticatedUser();
-		if (authResult.error) {
+		if (authResult.error !== undefined) {
 			return NextResponse.json(
 				{ error: authResult.error },
 				{ status: authResult.status }

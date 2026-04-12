@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   try {
     // 認証チェック（Cookie or Bearer の両方に対応）
     const authResult = await getAuthenticatedUser();
-    if (authResult.error) {
+    if (authResult.error !== undefined) {
       return NextResponse.json(
         { error: authResult.error },
         { status: authResult.status }

@@ -24,7 +24,7 @@ export async function GET(
 	try {
 		// 認証 + Supabaseクライアント取得（Cookie or Bearer 両対応）
 		const authResult = await getAuthenticatedClient();
-		if (authResult.error) {
+		if (authResult.error !== undefined) {
 			return NextResponse.json(
 				{ error: authResult.error === '認証が必要です' ? 'Unauthorized' : authResult.error },
 				{ status: authResult.status }
