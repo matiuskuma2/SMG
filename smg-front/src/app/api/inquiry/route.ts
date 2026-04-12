@@ -1,18 +1,17 @@
-import { createClient } from '@/lib/supabase-server';
+import { getAuthenticatedClient } from '@/lib/auth-helper';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
 	try {
-		const supabase = await createClient();
-
-		// ユーザー認証チェック
-		const {
-			data: { user },
-		} = await supabase.auth.getUser();
-
-		if (!user) {
-			return NextResponse.json({ error: '認証が必要です。' }, { status: 401 });
+		// 認証 + Supabaseクライアント取得（Cookie or Bearer 両対応）
+		const authResult = await getAuthenticatedClient();
+		if (authResult.error !== undefined) {
+			return NextResponse.json(
+				{ error: authResult.error },
+				{ status: authResult.status },
+			);
 		}
+		const { client: supabase, userId } = authResult;
 
 		// リクエストボディから内容を取得
 		const { content } = await request.json();
@@ -31,7 +30,7 @@ export async function POST(request: Request) {
 		const { data: existingThread } = await supabase
 			.from('mst_dm_thread')
 			.select('thread_id')
-			.eq('user_id', user.id)
+			.eq('user_id', userId)
 			.is('deleted_at', null)
 			.order('created_at', { ascending: false })
 			.limit(1)
@@ -43,7 +42,7 @@ export async function POST(request: Request) {
 			// スレッドが存在しない場合は新規作成
 			const { data: newThread, error: threadError } = await supabase
 				.from('mst_dm_thread')
-				.insert([{ user_id: user.id }])
+				.insert([{ user_id: userId }])
 				.select('thread_id')
 				.single();
 
@@ -66,7 +65,7 @@ export async function POST(request: Request) {
 			.insert([
 				{
 					thread_id: threadId,
-					user_id: user.id,
+					user_id: userId,
 					content: content.trim(),
 					is_sent: true,
 					is_inquiry: true, // お問い合わせフラグをtrueに設定

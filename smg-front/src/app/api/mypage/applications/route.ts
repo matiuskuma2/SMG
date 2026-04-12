@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase-server';
+import { getAuthenticatedClient } from '@/lib/auth-helper';
 import { type NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -46,16 +46,15 @@ function formatDateJP(dateStr: string): string {
 
 export async function GET(request: NextRequest) {
 	try {
-		const supabase = await createClient();
-
-		const {
-			data: { user },
-			error: authError,
-		} = await supabase.auth.getUser();
-
-		if (authError || !user) {
-			return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
+		// 認証 + Supabaseクライアント取得（Cookie or Bearer 両対応）
+		const authResult = await getAuthenticatedClient();
+		if (authResult.error !== undefined) {
+			return NextResponse.json(
+				{ error: authResult.error },
+				{ status: authResult.status },
+			);
 		}
+		const { client: supabase, userId } = authResult;
 
 		const { searchParams } = new URL(request.url);
 		const page = Number.parseInt(searchParams.get('page') || '1', 10);
@@ -77,19 +76,19 @@ export async function GET(request: NextRequest) {
 						event_location
 					)
 				`)
-				.eq('user_id', user.id)
+				.eq('user_id', userId)
 				.is('deleted_at', null),
 
 			supabase
 				.from('trn_gather_attendee')
 				.select('event_id, created_at')
-				.eq('user_id', user.id)
+				.eq('user_id', userId)
 				.is('deleted_at', null),
 
 			supabase
 				.from('trn_consultation_attendee')
 				.select('event_id, created_at')
-				.eq('user_id', user.id)
+				.eq('user_id', userId)
 				.is('deleted_at', null),
 		]);
 

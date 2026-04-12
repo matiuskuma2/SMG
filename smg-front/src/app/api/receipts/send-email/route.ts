@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase-server';
+import { getAuthenticatedClient } from '@/lib/auth-helper';
 import sgMail from '@sendgrid/mail';
 import {
   generateReceiptPDF,
@@ -12,18 +12,26 @@ const SENDER_EMAIL = process.env.SENDGRID_SENDER_EMAIL || '';
 
 export async function POST(request: NextRequest) {
   try {
+    // 認証 + Supabaseクライアント取得（Cookie or Bearer 両対応）
+    const authResult = await getAuthenticatedClient();
+    if (authResult.error !== undefined) {
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.status }
+      );
+    }
+    const { client: supabase, userId } = authResult;
+
     const body = await request.json();
-    const { eventId, userId, recipientName, receiptNumber, fileName } = body;
+    const { eventId, recipientName, receiptNumber, fileName } = body;
 
     // 必須パラメータの検証
-    if (!eventId || !userId || !recipientName || !receiptNumber || !fileName) {
+    if (!eventId || !recipientName || !receiptNumber || !fileName) {
       return NextResponse.json(
         { error: '必須パラメータが不足しています' },
         { status: 400 }
       );
     }
-
-    const supabase = await createClient();
 
     // ユーザー情報を取得
     const { data: userData, error: userError } = await supabase

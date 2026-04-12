@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase-server';
+import { getAuthenticatedClient } from '@/lib/auth-helper';
 import { type NextRequest, NextResponse } from 'next/server';
 
 interface ProfileUpdateRequest {
@@ -48,17 +48,15 @@ interface ProfileUpdateRequest {
 
 export async function PUT(request: NextRequest) {
 	try {
-		const supabase = await createClient();
-
-		// 認証されたユーザーを取得
-		const {
-			data: { user },
-			error: authError,
-		} = await supabase.auth.getUser();
-
-		if (authError || !user) {
-			return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
+		// 認証 + Supabaseクライアント取得（Cookie or Bearer 両対応）
+		const authResult = await getAuthenticatedClient();
+		if (authResult.error !== undefined) {
+			return NextResponse.json(
+				{ error: authResult.error },
+				{ status: authResult.status },
+			);
 		}
+		const { client: supabase, userId } = authResult;
 
 		// リクエストボディを取得
 		const body: ProfileUpdateRequest = await request.json();
@@ -174,7 +172,7 @@ export async function PUT(request: NextRequest) {
 		const { error: updateError } = await supabase
 			.from('mst_user')
 			.update(updateData)
-			.eq('user_id', user.id);
+			.eq('user_id', userId);
 
 		if (updateError) {
 			console.error('プロフィール更新エラー:', updateError);

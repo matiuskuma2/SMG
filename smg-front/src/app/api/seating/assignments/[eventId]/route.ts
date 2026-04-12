@@ -1,4 +1,5 @@
-import { createClient } from '@/lib/supabase-server';
+import { getAuthenticatedClient } from '@/lib/auth-helper';
+import { createAdminClient } from '@/lib/supabase-admin';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -6,29 +7,30 @@ export const dynamic = 'force-dynamic';
 /**
  * 配席結果取得API
  * GET /api/seating/assignments/[eventId]?roundNumber=1
- * 
+ *
  * 機能:
  * - 指定されたイベントとラウンド番号の配席結果を取得
  * - テーブル番号ごとにグループ化して返却
+ *
+ * アクセス制御:
+ * - Cookie経路: RLS が「運営/講師 または 当該イベント参加者」に制限
+ * - Bearer経路: RLSバイパスされるため、コード側で同等チェックを明示実施
+ *   (運営/講師 もしくは trn_seating_assignment に自分の user_id が存在する参加者)
  */
 export async function GET(
 	request: Request,
 	{ params }: { params: Promise<{ eventId: string }> }
 ) {
 	try {
-		const supabase = await createClient();
-
-		// 認証チェック
-		const {
-			data: { user },
-		} = await supabase.auth.getUser();
-
-		if (!user) {
+		// 認証 + Supabaseクライアント取得（Cookie or Bearer 両対応）
+		const authResult = await getAuthenticatedClient();
+		if (authResult.error !== undefined) {
 			return NextResponse.json(
-				{ error: 'Unauthorized' },
-				{ status: 401 }
+				{ error: authResult.error === '認証が必要です' ? 'Unauthorized' : authResult.error },
+				{ status: authResult.status }
 			);
 		}
+		const { client: supabase, userId, isBearer } = authResult;
 
 		const resolvedParams = await params;
 		const eventId = resolvedParams.eventId;
@@ -42,6 +44,61 @@ export async function GET(
 				{ error: 'Event ID is required' },
 				{ status: 400 }
 			);
+		}
+
+		// Bearer経路: RLSが効かないためアクセス制御をコードで明示
+		//  - 運営/講師 or 当該イベントの「正当な参加者」のみ許可
+		//  - 正当な参加者の定義: 当該 event_id に対して
+		//      trn_event_attendee / trn_gather_attendee / trn_consultation_attendee
+		//    のいずれかに自分の user_id が登録されている (deleted_at IS NULL)
+		//  - trn_seating_assignment 存在を要件にすると「配席生成前の参加者」が
+		//    閲覧不可になるため、申込段階の所属で判定する
+		if (isBearer) {
+			const admin = createAdminClient();
+
+			const { data: userGroups } = await admin
+				.from('trn_group_user')
+				.select('mst_group!inner(title)')
+				.eq('user_id', userId)
+				.is('deleted_at', null);
+			const titles = (userGroups || []).map(
+				(g: any) => g.mst_group?.title as string,
+			);
+			const isAdminOrInstructor =
+				titles.includes('運営') || titles.includes('講師');
+
+			let isEventParticipant = false;
+			if (!isAdminOrInstructor) {
+				// 3テーブルを並行チェック (deleted_at IS NULL)
+				const [eventRes, gatherRes, consultRes] = await Promise.all([
+					admin
+						.from('trn_event_attendee')
+						.select('user_id', { count: 'exact', head: true })
+						.eq('event_id', eventId)
+						.eq('user_id', userId)
+						.is('deleted_at', null),
+					admin
+						.from('trn_gather_attendee')
+						.select('user_id', { count: 'exact', head: true })
+						.eq('event_id', eventId)
+						.eq('user_id', userId)
+						.is('deleted_at', null),
+					admin
+						.from('trn_consultation_attendee')
+						.select('user_id', { count: 'exact', head: true })
+						.eq('event_id', eventId)
+						.eq('user_id', userId)
+						.is('deleted_at', null),
+				]);
+				isEventParticipant =
+					(eventRes.count || 0) > 0 ||
+					(gatherRes.count || 0) > 0 ||
+					(consultRes.count || 0) > 0;
+			}
+
+			if (!isAdminOrInstructor && !isEventParticipant) {
+				return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+			}
 		}
 
 		// 配席データを取得

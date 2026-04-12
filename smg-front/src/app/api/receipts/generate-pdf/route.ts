@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase-server';
+import { getAuthenticatedClient } from '@/lib/auth-helper';
 import {
 	generateReceiptPDF,
 	type ReceiptPDFData,
@@ -7,19 +7,29 @@ import {
 
 export async function POST(request: NextRequest) {
 	try {
-		const body = await request.json();
-		const { eventId, userId, recipientName, receiptNumber } = body;
+		// 認証 + Supabaseクライアント取得（Cookie or Bearer 両対応）
+		const authResult = await getAuthenticatedClient();
+		if (authResult.error !== undefined) {
+			return NextResponse.json(
+				{ error: authResult.error },
+				{ status: authResult.status },
+			);
+		}
+		const { client: supabase, userId } = authResult;
 
-		if (!eventId || !userId || !recipientName || !receiptNumber) {
+		const body = await request.json();
+		const { eventId, recipientName, receiptNumber } = body;
+
+		if (!eventId || !recipientName || !receiptNumber) {
 			return NextResponse.json(
 				{ error: '必須パラメータが不足しています' },
 				{ status: 400 },
 			);
 		}
 
-		const supabase = await createClient();
-
 		// 支払い情報を取得（金額はサーバー側で取得して改ざん防止）
+		// Bearer経路(RLSバイパス)でも認証ユーザー本人のレコードのみ取得するよう
+		// .eq('user_id', userId) で明示的にフィルタ
 		const { data, error } = await supabase
 			.from('trn_gather_attendee')
 			.select(

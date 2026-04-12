@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase-server';
+import { getAuthenticatedClient } from '@/lib/auth-helper';
 
 export async function POST(request: NextRequest) {
   try {
+    // 認証 + Supabaseクライアント取得（Cookie or Bearer 両対応）
+    const authResult = await getAuthenticatedClient();
+    if (authResult.error !== undefined) {
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.status }
+      );
+    }
+    const { client: supabase, userId } = authResult;
+
     const body = await request.json();
     const {
-      userId,
       receiptNumber,
       recipientName,
       amount,
@@ -17,14 +26,12 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // 必須パラメータの検証
-    if (!userId || !receiptNumber || !recipientName || !amount) {
+    if (!receiptNumber || !recipientName || !amount) {
       return NextResponse.json(
         { error: '必須パラメータが不足しています' },
         { status: 400 }
       );
     }
-
-    const supabase = await createClient();
 
     // 領収書履歴を保存
     const { data, error } = await supabase

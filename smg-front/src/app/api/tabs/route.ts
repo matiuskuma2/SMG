@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase-server';
+import { getAuthenticatedClient } from '@/lib/auth-helper';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -11,19 +11,15 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET() {
 	try {
-		const supabase = await createClient();
-
-		// 認証ユーザー取得
-		const {
-			data: { user },
-		} = await supabase.auth.getUser();
-
-		if (!user) {
+		// 認証 + Supabaseクライアント取得（Cookie or Bearer 両対応）
+		const authResult = await getAuthenticatedClient();
+		if (authResult.error !== undefined) {
 			return NextResponse.json(
-				{ error: '認証が必要です' },
-				{ status: 401 },
+				{ error: authResult.error },
+				{ status: authResult.status },
 			);
 		}
+		const { client: supabase, userId } = authResult;
 
 		// 公開中のタブを取得
 		const { data: tabs, error: tabError } = await (supabase as any)
@@ -55,7 +51,7 @@ export async function GET() {
 				group_id,
 				mst_group!inner(title)
 			`)
-			.eq('user_id', user.id)
+			.eq('user_id', userId)
 			.is('deleted_at', null);
 
 		if (groupError) {

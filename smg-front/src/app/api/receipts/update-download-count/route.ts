@@ -1,23 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase-server';
+import { getAuthenticatedClient } from '@/lib/auth-helper';
 
 // ダウンロード回数制限（2回）
 const MAX_DOWNLOAD_COUNT = 2;
 
 export async function POST(request: NextRequest) {
   try {
+    // 認証 + Supabaseクライアント取得（Cookie or Bearer 両対応）
+    const authResult = await getAuthenticatedClient();
+    if (authResult.error !== undefined) {
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.status }
+      );
+    }
+    const { client: supabase, userId } = authResult;
+
     const body = await request.json();
-    const { eventId, userId } = body;
+    const { eventId } = body;
 
     // 必須パラメータの検証
-    if (!eventId || !userId) {
+    if (!eventId) {
       return NextResponse.json(
         { error: '必須パラメータが不足しています' },
         { status: 400 }
       );
     }
-
-    const supabase = await createClient();
 
     // 現在のダウンロード回数を取得
     const { data: currentData, error: fetchError } = await supabase

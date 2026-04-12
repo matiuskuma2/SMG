@@ -1,22 +1,17 @@
-import { createClient } from '@/lib/supabase-server';
+import { getAuthenticatedClient } from '@/lib/auth-helper';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
 	try {
-		const supabase = await createClient();
-
-		// 認証されたユーザーを取得
-		const {
-			data: { user },
-			error: authError,
-		} = await supabase.auth.getUser();
-
-		if (authError || !user) {
+		// 認証 + Supabaseクライアント取得（Cookie or Bearer 両対応）
+		const authResult = await getAuthenticatedClient();
+		if (authResult.error !== undefined) {
 			return NextResponse.json(
-				{ error: '認証が必要です' },
-				{ status: 401 }
+				{ error: authResult.error },
+				{ status: authResult.status }
 			);
 		}
+		const { client: supabase, userId } = authResult;
 
 		// フォームデータを取得
 		const formData = await request.formData();
@@ -48,14 +43,14 @@ export async function POST(request: NextRequest) {
 		// ファイル名を生成（ユーザーIDとタイムスタンプを使用）
 		const timestamp = Date.now();
 		const fileExtension = file.name.split('.').pop();
-		const fileName = `${user.id}_${timestamp}.${fileExtension}`;
+		const fileName = `${userId}_${timestamp}.${fileExtension}`;
 		const filePath = `icon_image/${fileName}`;
 
 		// 既存のアイコンを削除（もしあれば）
 		const { data: existingUser } = await supabase
 			.from('mst_user')
 			.select('icon')
-			.eq('user_id', user.id)
+			.eq('user_id', userId)
 			.single();
 
 		if (existingUser?.icon) {
@@ -105,7 +100,7 @@ export async function POST(request: NextRequest) {
 				icon: publicUrl,
 				updated_at: new Date().toISOString(),
 			})
-			.eq('user_id', user.id);
+			.eq('user_id', userId);
 
 		if (updateError) {
 			console.error('アイコンURL更新エラー:', updateError);
