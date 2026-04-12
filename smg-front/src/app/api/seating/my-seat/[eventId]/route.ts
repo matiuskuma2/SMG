@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase-server';
+import { getAuthenticatedClient } from '@/lib/auth-helper';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -16,19 +16,15 @@ export async function GET(
 	{ params }: { params: Promise<{ eventId: string }> }
 ) {
 	try {
-		const supabase = await createClient();
-
-		// 認証チェック
-		const {
-			data: { user },
-		} = await supabase.auth.getUser();
-
-		if (!user) {
+		// 認証 + Supabaseクライアント取得（Cookie or Bearer 両対応）
+		const authResult = await getAuthenticatedClient();
+		if (authResult.error) {
 			return NextResponse.json(
-				{ error: 'Unauthorized' },
-				{ status: 401 }
+				{ error: authResult.error === '認証が必要です' ? 'Unauthorized' : authResult.error },
+				{ status: authResult.status }
 			);
 		}
+		const { client: supabase, userId } = authResult;
 
 		const resolvedParams = await params;
 		const eventId = resolvedParams.eventId;
@@ -52,7 +48,7 @@ export async function GET(
 				created_at
 			`)
 			.eq('event_id', eventId)
-			.eq('user_id', user.id)
+			.eq('user_id', userId)
 			.is('deleted_at', null)
 			.order('round_number', { ascending: true });
 
@@ -79,7 +75,7 @@ export async function GET(
 			success: true,
 			data: {
 				eventId,
-				userId: user.id,
+				userId: userId,
 				round1: round1
 					? {
 							table_number: round1.table_number,
