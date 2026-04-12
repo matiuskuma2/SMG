@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase-server';
+import { getAuthenticatedUser } from '@/lib/auth-helper';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -15,23 +15,17 @@ interface SmoothInAPIResponse {
 
 export async function GET() {
 	try {
-		const supabase = await createClient();
-
-		// 認証されたユーザーを取得
-		const {
-			data: { user },
-			error: authError,
-		} = await supabase.auth.getUser();
-
-		if (authError || !user) {
+		// 認証（Cookie or Bearer 両対応）
+		const authResult = await getAuthenticatedUser();
+		if (authResult.error) {
 			return NextResponse.json(
-				{ error: '認証が必要です' },
-				{ status: 401 }
+				{ error: authResult.error },
+				{ status: authResult.status }
 			);
 		}
 
 		// ユーザーのメールアドレスを取得
-		const email = user.email;
+		const email = authResult.email;
 		if (!email) {
 			return NextResponse.json(
 				{ error: 'メールアドレスが見つかりません' },
