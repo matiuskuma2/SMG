@@ -97,6 +97,7 @@ export async function POST(request: Request) {
     const productName = `${formattedDate} ${eventData.event_name}参加申込み`;
 
     // 定員数チェック（RLSバイパス）
+    // 業務系エラーは 409 (Conflict) / 400 / 503 で明示的に返し、500 化を避ける。
     if (selectedTypes.includes('Event')) {
       const { count: totalEventCount, error: totalEventCountError } = await (adminSupabase as any)
         .from('trn_event_attendee')
@@ -105,11 +106,18 @@ export async function POST(request: Request) {
         .is('deleted_at', null);
 
       if (totalEventCountError) {
-        throw new Error('イベント参加者数の取得に失敗しました');
+        console.error('イベント参加者数取得エラー:', totalEventCountError);
+        return NextResponse.json(
+          { error: 'イベント参加者数の取得に失敗しました。時間をおいて再度お試しください' },
+          { status: 503 }
+        );
       }
 
       if ((totalEventCount || 0) >= eventData.event_capacity) {
-        throw new Error('イベントの定員に達しています');
+        return NextResponse.json(
+          { error: 'イベントの定員に達しています', code: 'EVENT_FULL' },
+          { status: 409 }
+        );
       }
     }
 
@@ -121,11 +129,18 @@ export async function POST(request: Request) {
         .is('deleted_at', null);
 
       if (gatherCountError) {
-        throw new Error('懇親会参加者数の取得に失敗しました');
+        console.error('懇親会参加者数取得エラー:', gatherCountError);
+        return NextResponse.json(
+          { error: '懇親会参加者数の取得に失敗しました。時間をおいて再度お試しください' },
+          { status: 503 }
+        );
       }
 
       if ((gatherCount || 0) >= (eventData.gather_capacity || 0)) {
-        throw new Error('懇親会の定員に達しています');
+        return NextResponse.json(
+          { error: '懇親会の定員に達しています', code: 'GATHER_FULL' },
+          { status: 409 }
+        );
       }
     }
 
@@ -137,22 +152,35 @@ export async function POST(request: Request) {
         .is('deleted_at', null);
 
       if (consultationCountError) {
-        throw new Error('個別相談参加者数の取得に失敗しました');
+        console.error('個別相談参加者数取得エラー:', consultationCountError);
+        return NextResponse.json(
+          { error: '個別相談参加者数の取得に失敗しました。時間をおいて再度お試しください' },
+          { status: 503 }
+        );
       }
 
       if ((consultationCount || 0) >= (eventData.consultation_capacity || 0)) {
-        throw new Error('個別相談の定員に達しています');
+        return NextResponse.json(
+          { error: '個別相談の定員に達しています', code: 'CONSULTATION_FULL' },
+          { status: 409 }
+        );
       }
     }
 
     // 請求項目の作成
     const lineItems = [];
-    
+
     if (selectedTypes.includes('Networking')) {
-      if (eventData.gather_price === null) {
-        throw new Error('懇親会の料金が設定されていません');
+      // 料金未設定はサーバー側の構成不備。クライアントに 409 で返しつつ
+      // 500化は避ける。運営が料金設定するまで申込不可という業務意味。
+      if (eventData.gather_price === null || eventData.gather_price === undefined) {
+        console.error('懇親会の料金未設定 event_id=', event_id);
+        return NextResponse.json(
+          { error: '懇親会の料金が設定されていません。運営までお問い合わせください', code: 'GATHER_PRICE_NOT_SET' },
+          { status: 409 }
+        );
       }
-      
+
       lineItems.push({
         price_data: {
           currency: 'jpy',
