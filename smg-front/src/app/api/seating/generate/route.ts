@@ -1,4 +1,5 @@
-import { createClient } from '@/lib/supabase-server';
+import { getAuthenticatedClient } from '@/lib/auth-helper';
+import { createAdminClient } from '@/lib/supabase-admin';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -23,18 +24,35 @@ interface GenerateSeatingRequest {
  */
 export async function POST(request: Request) {
 	try {
-		const supabase = await createClient();
-
-		// 認証チェック
-		const {
-			data: { user },
-		} = await supabase.auth.getUser();
-
-		if (!user) {
+		// 認証 + Supabaseクライアント取得（Cookie or Bearer 両対応）
+		const authResult = await getAuthenticatedClient();
+		if (authResult.error) {
 			return NextResponse.json(
-				{ error: 'Unauthorized' },
-				{ status: 401 }
+				{ error: authResult.error === '認証が必要です' ? 'Unauthorized' : authResult.error },
+				{ status: authResult.status }
 			);
+		}
+		const { client: supabase, userId, isBearer } = authResult;
+
+		// 席替えくじ生成は運営/講師のみ許可。
+		// Cookie経路では RLS が INSERT/UPDATE を制限するが、Bearer経路では
+		// admin client で RLS がバイパスされるため、コード側で明示チェックする。
+		if (isBearer) {
+			const adminCheck = createAdminClient();
+			const { data: userGroups } = await adminCheck
+				.from('trn_group_user')
+				.select('mst_group!inner(title)')
+				.eq('user_id', userId)
+				.is('deleted_at', null);
+
+			const titles = (userGroups || []).map(
+				(g: any) => g.mst_group?.title as string,
+			);
+			const isAdminOrInstructor =
+				titles.includes('運営') || titles.includes('講師');
+			if (!isAdminOrInstructor) {
+				return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+			}
 		}
 
 		// リクエストボディのパース
