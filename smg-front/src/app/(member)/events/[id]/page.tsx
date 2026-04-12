@@ -69,10 +69,10 @@ const EventDetail = () => {
 				setEvent(eventData);
 			}
 
-			// 参加者数を取得（一覧表示と揃えるためオフライン参加者数を採用）
+			// 参加者数を取得（オンライン/オフラインを含む全参加者数を表示）
 			try {
 				const counts = await fetchEventParticipantCounts(id);
-				setParticipantCount(counts.offlineEventCount);
+				setParticipantCount(counts.eventCount);
 			} catch (countError) {
 				console.error('参加者数の取得に失敗:', countError);
 			}
