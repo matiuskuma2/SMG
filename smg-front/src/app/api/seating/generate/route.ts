@@ -32,12 +32,12 @@ export async function POST(request: Request) {
 				{ status: authResult.status }
 			);
 		}
-		const { client: supabase, userId, isBearer } = authResult;
+		const { client: supabase, userId } = authResult;
 
 		// 席替えくじ生成は運営/講師のみ許可。
-		// Cookie経路では RLS が INSERT/UPDATE を制限するが、Bearer経路では
-		// admin client で RLS がバイパスされるため、コード側で明示チェックする。
-		if (isBearer) {
+		// Cookie/Bearer どちらの経路でもコード側で明示チェックを行う。
+		// (RLSだけに頼らず、ポリシー変更時の想定外許可を防ぐ)
+		{
 			const adminCheck = createAdminClient();
 			const { data: userGroups } = await adminCheck
 				.from('trn_group_user')
