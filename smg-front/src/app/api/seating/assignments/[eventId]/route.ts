@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase-server';
+import { getAuthenticatedClient } from '@/lib/auth-helper';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -6,29 +6,29 @@ export const dynamic = 'force-dynamic';
 /**
  * 配席結果取得API
  * GET /api/seating/assignments/[eventId]?roundNumber=1
- * 
+ *
  * 機能:
  * - 指定されたイベントとラウンド番号の配席結果を取得
  * - テーブル番号ごとにグループ化して返却
+ *
+ * 注意: このAPIは1イベント全参加者の配席情報を返す (ユーザー単位ではない)。
+ * Cookie経路では RLS が参加者/運営・講師に制限する前提。
+ * Bearer経路 (RLSバイパス) でも認証済みユーザーであれば返却する。
  */
 export async function GET(
 	request: Request,
 	{ params }: { params: Promise<{ eventId: string }> }
 ) {
 	try {
-		const supabase = await createClient();
-
-		// 認証チェック
-		const {
-			data: { user },
-		} = await supabase.auth.getUser();
-
-		if (!user) {
+		// 認証 + Supabaseクライアント取得（Cookie or Bearer 両対応）
+		const authResult = await getAuthenticatedClient();
+		if (authResult.error) {
 			return NextResponse.json(
-				{ error: 'Unauthorized' },
-				{ status: 401 }
+				{ error: authResult.error === '認証が必要です' ? 'Unauthorized' : authResult.error },
+				{ status: authResult.status }
 			);
 		}
+		const { client: supabase } = authResult;
 
 		const resolvedParams = await params;
 		const eventId = resolvedParams.eventId;
