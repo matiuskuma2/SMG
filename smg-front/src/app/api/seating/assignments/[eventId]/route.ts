@@ -47,7 +47,12 @@ export async function GET(
 		}
 
 		// Bearer経路: RLSが効かないためアクセス制御をコードで明示
-		//  - 運営/講師 or 当該イベント(かつ当該round)の配席に含まれる参加者のみ許可
+		//  - 運営/講師 or 当該イベントの「正当な参加者」のみ許可
+		//  - 正当な参加者の定義: 当該 event_id に対して
+		//      trn_event_attendee / trn_gather_attendee / trn_consultation_attendee
+		//    のいずれかに自分の user_id が登録されている (deleted_at IS NULL)
+		//  - trn_seating_assignment 存在を要件にすると「配席生成前の参加者」が
+		//    閲覧不可になるため、申込段階の所属で判定する
 		if (isBearer) {
 			const admin = createAdminClient();
 
@@ -64,16 +69,31 @@ export async function GET(
 
 			let isEventParticipant = false;
 			if (!isAdminOrInstructor) {
-				const { data: selfAssignment } = await admin
-					.from('trn_seating_assignment')
-					.select('assignment_id')
-					.eq('event_id', eventId)
-					.eq('round_number', roundNumber)
-					.eq('user_id', userId)
-					.is('deleted_at', null)
-					.limit(1)
-					.maybeSingle();
-				isEventParticipant = !!selfAssignment;
+				// 3テーブルを並行チェック (deleted_at IS NULL)
+				const [eventRes, gatherRes, consultRes] = await Promise.all([
+					admin
+						.from('trn_event_attendee')
+						.select('user_id', { count: 'exact', head: true })
+						.eq('event_id', eventId)
+						.eq('user_id', userId)
+						.is('deleted_at', null),
+					admin
+						.from('trn_gather_attendee')
+						.select('user_id', { count: 'exact', head: true })
+						.eq('event_id', eventId)
+						.eq('user_id', userId)
+						.is('deleted_at', null),
+					admin
+						.from('trn_consultation_attendee')
+						.select('user_id', { count: 'exact', head: true })
+						.eq('event_id', eventId)
+						.eq('user_id', userId)
+						.is('deleted_at', null),
+				]);
+				isEventParticipant =
+					(eventRes.count || 0) > 0 ||
+					(gatherRes.count || 0) > 0 ||
+					(consultRes.count || 0) > 0;
 			}
 
 			if (!isAdminOrInstructor && !isEventParticipant) {
