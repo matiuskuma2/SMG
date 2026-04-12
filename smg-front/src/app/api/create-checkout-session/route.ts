@@ -25,6 +25,12 @@ export async function POST(request: Request) {
       );
     }
     const userId = authResult.userId;
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'ユーザー情報の取得に失敗しました' },
+        { status: 401 }
+      );
+    }
 
     const body = await request.json();
     const { event_id, selectedTypes, participationType, questionAnswers, isUrgent, isFirstConsultation } = body;
