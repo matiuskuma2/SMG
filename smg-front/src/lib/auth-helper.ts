@@ -108,6 +108,19 @@ export type ClientResult = ClientSuccess | ClientError;
  *   → 呼び出し側で必ず `.eq('user_id', userId)` 等のRLS相当フィルタを付けること
  * - Cookie経路: 既存のserver client を返す（RLS自動適用）
  *   → 既存動作を100%維持
+ *
+ * ⚠️ 新規APIを実装する際の必須チェックリスト:
+ *   1. ユーザー所有リソース (mst_user, trn_event_attendee 等):
+ *      → `.eq('user_id', userId)` を必ず付ける
+ *   2. 一覧系/管理系 (全参加者、イベント全体):
+ *      → isBearer 時にコード側で運営/講師チェック or 本人参加チェック
+ *   3. Storage へのアップロード:
+ *      → パスプレフィックスに userId を含めて分離する
+ *   4. INSERT/UPDATE:
+ *      → user_id カラムには常に authResult.userId を使い、body 由来の
+ *        userId は絶対に信用しない
+ *
+ * これを守らないと Bearer経路でデータ横漏れ/なりすましが即発生する。
  */
 export async function getAuthenticatedClient(): Promise<ClientResult> {
 	const headerList = await headers();
