@@ -1,4 +1,5 @@
 import { getAuthenticatedClient } from '@/lib/auth-helper';
+import { createAdminClient } from '@/lib/supabase-admin';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -11,9 +12,10 @@ export const dynamic = 'force-dynamic';
  * - 指定されたイベントとラウンド番号の配席結果を取得
  * - テーブル番号ごとにグループ化して返却
  *
- * 注意: このAPIは1イベント全参加者の配席情報を返す (ユーザー単位ではない)。
- * Cookie経路では RLS が参加者/運営・講師に制限する前提。
- * Bearer経路 (RLSバイパス) でも認証済みユーザーであれば返却する。
+ * アクセス制御:
+ * - Cookie経路: RLS が「運営/講師 または 当該イベント参加者」に制限
+ * - Bearer経路: RLSバイパスされるため、コード側で同等チェックを明示実施
+ *   (運営/講師 もしくは trn_seating_assignment に自分の user_id が存在する参加者)
  */
 export async function GET(
 	request: Request,
@@ -28,7 +30,7 @@ export async function GET(
 				{ status: authResult.status }
 			);
 		}
-		const { client: supabase } = authResult;
+		const { client: supabase, userId, isBearer } = authResult;
 
 		const resolvedParams = await params;
 		const eventId = resolvedParams.eventId;
@@ -42,6 +44,41 @@ export async function GET(
 				{ error: 'Event ID is required' },
 				{ status: 400 }
 			);
+		}
+
+		// Bearer経路: RLSが効かないためアクセス制御をコードで明示
+		//  - 運営/講師 or 当該イベント(かつ当該round)の配席に含まれる参加者のみ許可
+		if (isBearer) {
+			const admin = createAdminClient();
+
+			const { data: userGroups } = await admin
+				.from('trn_group_user')
+				.select('mst_group!inner(title)')
+				.eq('user_id', userId)
+				.is('deleted_at', null);
+			const titles = (userGroups || []).map(
+				(g: any) => g.mst_group?.title as string,
+			);
+			const isAdminOrInstructor =
+				titles.includes('運営') || titles.includes('講師');
+
+			let isEventParticipant = false;
+			if (!isAdminOrInstructor) {
+				const { data: selfAssignment } = await admin
+					.from('trn_seating_assignment')
+					.select('assignment_id')
+					.eq('event_id', eventId)
+					.eq('round_number', roundNumber)
+					.eq('user_id', userId)
+					.is('deleted_at', null)
+					.limit(1)
+					.maybeSingle();
+				isEventParticipant = !!selfAssignment;
+			}
+
+			if (!isAdminOrInstructor && !isEventParticipant) {
+				return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+			}
 		}
 
 		// 配席データを取得
