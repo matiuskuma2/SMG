@@ -108,22 +108,25 @@ export async function GET(request: NextRequest) {
 		// イベント申し込み（mst_event情報付き）
 		for (const item of eventResult.data || []) {
 			const existing = eventMap.get(item.event_id);
+			const eventInfo = Array.isArray(item.mst_event)
+				? item.mst_event[0]
+				: item.mst_event;
 			if (existing) {
 				existing.hasEvent = true;
 			} else {
 				eventMap.set(item.event_id, {
 					eventId: item.event_id,
-					name: item.mst_event?.event_name || 'イベント名不明',
-					date: item.mst_event?.event_start_datetime
-						? formatDateJP(item.mst_event.event_start_datetime)
+					name: eventInfo?.event_name || 'イベント名不明',
+					date: eventInfo?.event_start_datetime
+						? formatDateJP(eventInfo.event_start_datetime)
 						: '日時不明',
-					location: item.mst_event?.event_location || '場所不明',
+					location: eventInfo?.event_location || '場所不明',
 					isOffline: item.is_offline || false,
 					hasEvent: true,
 					hasGather: false,
 					hasConsultation: false,
-					eventStartDatetime: item.mst_event?.event_start_datetime || '',
-					eventEndDatetime: item.mst_event?.event_end_datetime || '',
+					eventStartDatetime: eventInfo?.event_start_datetime || '',
+					eventEndDatetime: eventInfo?.event_end_datetime || '',
 					createdAt: item.created_at || '',
 				});
 			}
