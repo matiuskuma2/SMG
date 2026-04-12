@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase-server';
+import { getAuthenticatedClient } from '@/lib/auth-helper';
 
 export async function GET(request: NextRequest) {
   try {
+    // 認証 + Supabaseクライアント取得（Cookie or Bearer 両対応）
+    const authResult = await getAuthenticatedClient();
+    if (authResult.error) {
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.status }
+      );
+    }
+    const { client: supabase, userId } = authResult;
+
     const searchParams = request.nextUrl.searchParams;
     const stripePaymentIntentId = searchParams.get('stripe_payment_intent_id');
 
@@ -14,13 +24,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
-
     // 領収書履歴を取得
+    // Bearer経路(RLSバイパス)でも他人の履歴が見えないよう user_id フィルタを明示
     const { data, error } = await supabase
       .from('trn_receipt_history')
       .select('receipt_id, number, name, amount, description, is_dashboard_issued, is_email_issued, created_at')
       .eq('stripe_payment_intent_id', stripePaymentIntentId)
+      .eq('user_id', userId)
       .is('deleted_at', null)
       .order('created_at', { ascending: false });
 
