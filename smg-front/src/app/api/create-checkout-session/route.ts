@@ -29,6 +29,27 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { event_id, selectedTypes, participationType, questionAnswers, isUrgent, isFirstConsultation } = body;
 
+    // 入力バリデーション (400で返すべきもの。throw→500化させない)
+    if (!event_id || typeof event_id !== 'string') {
+      return NextResponse.json(
+        { error: 'event_id は必須です' },
+        { status: 400 }
+      );
+    }
+    if (!Array.isArray(selectedTypes) || selectedTypes.length === 0) {
+      return NextResponse.json(
+        { error: 'selectedTypes は1件以上の配列が必要です' },
+        { status: 400 }
+      );
+    }
+    const ALLOWED_TYPES = ['Event', 'Networking', 'Consultation'];
+    if (!selectedTypes.every((t: unknown) => typeof t === 'string' && ALLOWED_TYPES.includes(t))) {
+      return NextResponse.json(
+        { error: 'selectedTypes に不正な値が含まれています' },
+        { status: 400 }
+      );
+    }
+
     // service_role クライアント（RLSバイパス）
     const adminSupabase = createAdminClient();
 
@@ -39,8 +60,11 @@ export async function POST(request: Request) {
       .eq('event_id', event_id)
       .single();
 
-    if (eventError) {
-      throw new Error('イベント情報の取得に失敗しました');
+    if (eventError || !eventData) {
+      return NextResponse.json(
+        { error: '指定されたイベントが見つかりません' },
+        { status: 404 }
+      );
     }
 
     // 締切日チェック（サーバーサイドバリデーション）
