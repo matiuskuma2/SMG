@@ -199,7 +199,6 @@ export async function POST(request: Request) {
 
     // チェックアウトセッションの作成
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
       success_url: selectedTypes.includes('Consultation') 
