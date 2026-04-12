@@ -168,7 +168,17 @@ export async function POST(request: Request) {
     }
 
     // 請求項目の作成
-    const lineItems = [];
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
+
+    const checkoutMetadata: Record<string, string> = {
+      event_id: event_id.toString(),
+      selectedTypes: JSON.stringify(selectedTypes),
+      userId: userId,
+      participationType: participationType ? String(participationType) : '',
+      questionAnswers: JSON.stringify(questionAnswers || {}),
+      isUrgent: isUrgent ? 'true' : 'false',
+      isFirstConsultation: isFirstConsultation ? 'true' : 'false',
+    };
 
     if (selectedTypes.includes('Networking')) {
       // 料金未設定はサーバー側の構成不備。クライアントに 409 で返しつつ
@@ -205,26 +215,10 @@ export async function POST(request: Request) {
         ? `${process.env.NEXT_PUBLIC_BASE_URL}/off-line-consulations/${event_id}?session_id={CHECKOUT_SESSION_ID}`
         : `${process.env.NEXT_PUBLIC_BASE_URL}/events/${event_id}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/events/${event_id}`,
-      metadata: {
-        event_id: event_id.toString(),
-        selectedTypes: JSON.stringify(selectedTypes),
-        userId: userId,
-        participationType: participationType || null,
-        questionAnswers: JSON.stringify(questionAnswers || {}),
-        isUrgent: isUrgent ? 'true' : 'false',
-        isFirstConsultation: isFirstConsultation ? 'true' : 'false',
-      },
+      metadata: checkoutMetadata,
       payment_intent_data: {
         description: productName,
-        metadata: {
-          event_id: event_id.toString(),
-          selectedTypes: JSON.stringify(selectedTypes),
-          userId: userId,
-          participationType: participationType || null,
-          questionAnswers: JSON.stringify(questionAnswers || {}),
-          isUrgent: isUrgent ? 'true' : 'false',
-          isFirstConsultation: isFirstConsultation ? 'true' : 'false',
-        },
+        metadata: checkoutMetadata,
       },
     });
 
