@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { createClient } from '@/lib/supabase-server';
+import { getAuthenticatedUser } from '@/lib/auth-helper';
 import { createAdminClient } from '@/lib/supabase-admin';
 
 // StripeのAPIキーを環境変数から取得
@@ -16,14 +16,24 @@ const stripe = new Stripe(stripeKey, {
 
 export async function POST(request: Request) {
   try {
+    // 認証（Cookie or Bearer 両対応）
+    const authResult = await getAuthenticatedUser();
+    if (authResult.error) {
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.status }
+      );
+    }
+    const userId = authResult.userId;
+
     const body = await request.json();
     const { event_id, selectedTypes, participationType, questionAnswers, isUrgent, isFirstConsultation } = body;
 
-    // Supabaseクライアントの作成
-    const supabase = await createClient();
+    // service_role クライアント（RLSバイパス）
+    const adminSupabase = createAdminClient();
 
-    // イベントの情報を取得
-    const { data: eventData, error: eventError } = await supabase
+    // イベントの情報を取得（公開データだが、Bearer経路でも確実に動くよう admin で取得）
+    const { data: eventData, error: eventError } = await (adminSupabase as any)
       .from('mst_event')
       .select('gather_price, event_name, event_start_datetime, event_capacity, gather_capacity, consultation_capacity, registration_end_datetime, gather_registration_end_datetime')
       .eq('event_id', event_id)
@@ -62,9 +72,7 @@ export async function POST(request: Request) {
     const formattedDate = `${eventDate.getMonth() + 1}月${eventDate.getDate()}日(${dayOfWeek[eventDate.getDay()]})`;
     const productName = `${formattedDate} ${eventData.event_name}参加申込み`;
 
-    // service_roleクライアントで定員数チェック（RLSバイパス）
-    const adminSupabase = createAdminClient();
-
+    // 定員数チェック（RLSバイパス）
     if (selectedTypes.includes('Event')) {
       const { count: totalEventCount, error: totalEventCountError } = await (adminSupabase as any)
         .from('trn_event_attendee')
@@ -149,7 +157,7 @@ export async function POST(request: Request) {
       metadata: {
         event_id: event_id.toString(),
         selectedTypes: JSON.stringify(selectedTypes),
-        userId: (await supabase.auth.getUser()).data.user?.id || '',
+        userId: userId,
         participationType: participationType || null,
         questionAnswers: JSON.stringify(questionAnswers || {}),
         isUrgent: isUrgent ? 'true' : 'false',
@@ -160,7 +168,7 @@ export async function POST(request: Request) {
         metadata: {
           event_id: event_id.toString(),
           selectedTypes: JSON.stringify(selectedTypes),
-          userId: (await supabase.auth.getUser()).data.user?.id || '',
+          userId: userId,
           participationType: participationType || null,
           questionAnswers: JSON.stringify(questionAnswers || {}),
           isUrgent: isUrgent ? 'true' : 'false',
